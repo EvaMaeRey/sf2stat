@@ -2,7 +2,6 @@
 output: 
   github_document:
     toc: TRUE
-
 ---
 
 
@@ -67,19 +66,191 @@ xxxxx::times_two(x = 4)
 Here is a function that will do some work...
 
 
-```{r times_two}
-times_two <- function(x){
+```{r return_st_bbox_df}
+return_st_bbox_df <- function(sf_df){
   
-  x*2
+  bb <- sf::st_bbox(sf_df)
+
+  data.frame(xmin = bb[1], ymin = bb[2],
+             xmax = bb[3], ymax = bb[4])
+
+}
+```
+
+
+```{r add_xy_coords}
+add_xy_coords <- function(geo_df){
+
+geo_df |>
+    dplyr::pull(geometry) |>
+    sf::st_zm() |>
+    sf::st_point_on_surface() ->
+  points_sf
+
+the_coords <- do.call(rbind, sf::st_geometry(points_sf)) |>
+  tibble::as_tibble() |> setNames(c("x","y"))
+
+cbind(geo_df, the_coords)
+
+}
+```
+
+```{r}
+ref_df_add_bb_and_xy_centers <- function(ref_df, id_col_name = NULL){
+  
+  ref_df |>
+    dplyr::mutate(bb =
+                    purrr::map(geometry,
+                               return_st_bbox_df)) |>
+    tidyr::unnest(bb) |>
+    data.frame() |>
+    add_xy_coords() ->
+  ref_df_w_bb
+
+  if(is.null(id_col_name)){id_col_name <- 1}
+  ref_df_w_bb$id_col <- ref_df_w_bb[,id_col_name]
+  # 
+  ref_df_w_bb
+  
+  }
+```
+
+
+```{r}
+return_compute_panel_code <- function(){
+  
+"compute_panel_geo <- function(data, scales, keep_id = NULL, drop_id = NULL){
+  
+  if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
+  if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
+  
+  if(!stamp){data <- dplyr::inner_join(data, my_ref_df_w_bb_and_xy_centers)}
+  if( stamp){data <- ref_df_w_bb_and_xy_centers }
+  
+  data
+  
+}" |> cat()
   
 }
 ```
 
 
+
+```{r}
+return_stat_code <- function(){
+  
+'StatXXXXsf <- ggplot2::ggproto(`_class` = "StatXXXXsf",
+                                `_inherit` = ggplot2::Stat,
+                                required_aes = required_aes,
+                                compute_panel = compute_panel_geo,
+                               default_aes = default_aes)' |> cat()
+}
+```
+
+
+```{r}
+return_layer_code <- function(){ 'stat_county <- function(
+      mapping = NULL,
+      data = NULL,
+      geom = ggplot2::GeomSf,
+      position = "identity",
+      na.rm = FALSE,
+      show.legend = NA,
+      inherit.aes = TRUE,
+      crs = "NAD27", # "NAD27", 5070, "WGS84", "NAD83", 4326 , 3857
+      ...) {
+
+  c(ggplot2::layer_sf(
+              stat = StatNcfips,  # proto object from step 2
+              geom = geom,  # inherit other behavior
+              data = data,
+              mapping = mapping,
+              position = position,
+              show.legend = show.legend,
+              inherit.aes = inherit.aes,
+              params = rlang::list2(na.rm = na.rm, ...)
+              ),
+              
+              coord_sf(crs = crs,
+                       default_crs = sf::st_crs(crs),
+                       datum = crs,
+                       default = TRUE)
+     )
+  }' |> cat()
+
+}
+  
+```
+
 ## Try it out
 
 ```{r}
-times_two(4)
+nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
+
+nc |>
+  dplyr::select(county_name = NAME, fips = FIPS) |>
+  ref_df_add_bb_and_xy_centers(id_col_name = "county_name") ->
+nc_geo_reference
+
+# step 1
+compute_panel_nc <- function(data, scales, keep_id = NULL, drop_id = NULL, stamp = FALSE){
+  
+  if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
+  if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
+  
+  if(!stamp){data <- dplyr::inner_join(data, nc_geo_reference)}
+  if( stamp){data <- nc_geo_reference }
+  
+  data
+  
+}
+
+# step 2
+StatNcsf <- ggplot2::ggproto(`_class` = "StatNcsf",
+                                `_inherit` = ggplot2::Stat,
+                                required_aes = c("fips|county_name"),
+                                compute_panel = compute_panel_nc,
+                               default_aes = ggplot2::aes(label = after_stat(id_col)))
+
+# step 3
+stat_county <- function(
+      mapping = NULL,
+      data = NULL,
+      geom = ggplot2::GeomSf,
+      position = "identity",
+      na.rm = FALSE,
+      show.legend = NA,
+      inherit.aes = TRUE,
+      crs = "NAD27", # "NAD27", 5070, "WGS84", "NAD83", 4326 , 3857
+      ...) {
+
+  c(ggplot2::layer_sf(
+              stat = StatNcsf,  # proto object from step 2
+              geom = geom,  # inherit other behavior
+              data = data,
+              mapping = mapping,
+              position = position,
+              show.legend = show.legend,
+              inherit.aes = inherit.aes,
+              params = rlang::list2(na.rm = na.rm, ...)
+              ),
+              
+              coord_sf(crs = crs,
+                       default_crs = sf::st_crs(crs),
+                       datum = crs,
+                       default = TRUE)
+     )
+  }
+
+
+library(ggplot2)
+nc |>
+  sf::st_drop_geometry() |>
+  ggplot() +
+  aes(fips = FIPS) +
+  stat_county() + 
+  aes(fill = BIR79)
+
 ```
 
 
