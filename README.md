@@ -1,55 +1,9 @@
 
-  - [*To the reader*](#to-the-reader)
-  - [Part 0. Proposal](#part-0-proposal)
-  - [Part I. Work out functionality ✅](#part-i-work-out-functionality-)
-      - [Try it out](#try-it-out)
-  - [Part II. Packaging and documentation 🚧
-    ✅](#part-ii-packaging-and-documentation--)
-      - [Phase 1. Minimal working
-        package](#phase-1-minimal-working-package)
-          - [Bit A. Created package archetecture, running
-            `devtools::create(".")` in interactive session. 🚧
-            ✅](#bit-a-created-package-archetecture-running-devtoolscreate-in-interactive-session--)
-          - [Bit B. Added roxygen skeleton? 🚧
-            ✅](#bit-b-added-roxygen-skeleton--)
-          - [Bit C. Managed dependencies ? 🚧
-            ✅](#bit-c-managed-dependencies---)
-          - [Bit D. Moved functions R folder? 🚧
-            ✅](#bit-d-moved-functions-r-folder--)
-          - [Bit E. Run `devtools::check()` and addressed errors. 🚧
-            ✅](#bit-e-run-devtoolscheck-and-addressed-errors--)
-          - [Bit F. Build package 🚧 ✅](#bit-f-build-package--)
-          - [Bit G. Write traditional README that uses built package
-            (also serves as a test of build. 🚧
-            ✅](#bit-g-write-traditional-readme-that-uses-built-package-also-serves-as-a-test-of-build--)
-          - [Bit H. Chosen a license? 🚧 ✅](#bit-h-chosen-a-license--)
-          - [Bit I. Add lifecycle badge
-            (experimental)](#bit-i-add-lifecycle-badge-experimental)
-      - [Phase 2: Listen & iterate 🚧 ✅](#phase-2-listen--iterate--)
-      - [Phase 3: Let things settle](#phase-3-let-things-settle)
-          - [Bit A. Settle on examples. Put them in the roxygen skeleton
-            and readme. 🚧
-            ✅](#bit-a-settle-on-examples-put-them-in-the-roxygen-skeleton-and-readme--)
-          - [Bit B. Written formal tests of functions and save to test
-            that folders 🚧
-            ✅](#bit-b-written-formal-tests-of-functions-and-save-to-test-that-folders--)
-          - [Bit C. Added a description and author information in the
-            DESCRIPTION file 🚧
-            ✅](#bit-c-added-a-description-and-author-information-in-the-description-file--)
-          - [Bit D. Addressed *all* notes, warnings and errors. 🚧
-            ✅](#bit-d-addressed-all-notes-warnings-and-errors--)
-      - [Phase 4. Promote to wider
-        audience…](#phase-4-promote-to-wider-audience)
-          - [Bit A. Package website built? 🚧
-            ✅](#bit-a-package-website-built--)
-          - [Bit B. Package website deployed? 🚧
-            ✅](#bit-b-package-website-deployed--)
-      - [Phase 5: Harden/commit](#phase-5-hardencommit)
-          - [Submit to CRAN/RUniverse? 🚧 ✅](#submit-to-cranruniverse--)
-  - [Appendix: Reports, Environment](#appendix-reports-environment)
-      - [Edit Description file](#edit-description-file)
-      - [Environment](#environment)
-      - [`devtools::check()` report](#devtoolscheck-report)
+<!-- badges: start -->
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+<!-- badges: end -->
 
 # *To the reader*
 
@@ -71,30 +25,27 @@ remotes::install.github("EvaMaeRey/readme2pkg")
 
 # Part 0. Proposal
 
-Proposing the {xxxx} package\! 🦄
+Proposing the {sf2stat} package\! 🦄
 <!-- (typical package introduction write up; but actually aspirational) -->
 
-The goal of {xxxx} is to make … easier.
+The goal of {sf2stat} is to make it easier to prep sf data to become
+part of a ggproto Stat object, which in turn can be used for creating a
+stat/geom function.
 
-Without the package, we live in the effort-ful world that follows 🏋:
+Without the package, we live in the effort-ful world, in which we’d have
+to prep our own data including figuring out the bounding box for each
+geometry, and the centroid for each geometry.
 
-``` r
-x <- 4
-
-2*x
-#> [1] 8
-```
-
-With the {xxxx} package, we’ll live in a different world (🦄 🦄 🦄) where
-the task is a snap 🫰:
+With the {sf2stat} package, we’ll live in a different world (🦄 🦄 🦄)
+where the task is a snap 🫰:
 
 Proposed API:
 
 ``` 
 
-library(xxxxx)
+library(sf2stat)
 
-xxxxx::times_two(x = 4)
+my_geom_ref_data <- sf_df_prep_for_stat(data, id_col_name = county_name)
 ```
 
 # Part I. Work out functionality ✅
@@ -102,7 +53,7 @@ xxxxx::times_two(x = 4)
 Here is a function that will do some work…
 
 ``` r
-return_st_bbox_df <- function(sf_df){
+sf_df_return_bbox_df <- function(sf_df){
   
   bb <- sf::st_bbox(sf_df)
 
@@ -113,9 +64,9 @@ return_st_bbox_df <- function(sf_df){
 ```
 
 ``` r
-add_xy_coords <- function(geo_df){
+sf_df_add_xy_center_coords <- function(sf_df){
 
-geo_df |>
+sf_df |>
     dplyr::pull(geometry) |>
     sf::st_zm() |>
     sf::st_point_on_surface() ->
@@ -124,41 +75,44 @@ geo_df |>
 the_coords <- do.call(rbind, sf::st_geometry(points_sf)) |>
   tibble::as_tibble() |> setNames(c("x","y"))
 
-cbind(geo_df, the_coords)
+cbind(sf_df, the_coords)
 
 }
 ```
 
 ``` r
-ref_df_add_bb_and_xy_centers <- function(ref_df, id_col_name = NULL){
+sf_df_prep_for_stat <- function(sf_df, id_col_name = NULL){
   
-  ref_df |>
+  sf_df |>
+    # using purrr allows us to get bb for each row
     dplyr::mutate(bb =
                     purrr::map(geometry,
-                               return_st_bbox_df)) |>
+                               sf_df_return_bbox_df)) |>
     tidyr::unnest(bb) |>
     data.frame() |>
-    add_xy_coords() ->
-  ref_df_w_bb
+    sf_df_add_xy_center_coords() ->
+  sf_df_w_bb_and_centers
 
-  if(is.null(id_col_name)){id_col_name <- 1}
-  ref_df_w_bb$id_col <- ref_df_w_bb[,id_col_name]
-  # 
-  ref_df_w_bb
+  # use first column as keep/drop column unless otherwise specified
+  if(is.null(id_col_name)){id_col_name <- 1} 
+  
+  sf_df_w_bb_and_centers$id_col <- sf_df_w_bb_and_centers[,id_col_name]
+
+  return(sf_df_w_bb_and_centers)
   
   }
 ```
 
 ``` r
-return_compute_panel_code <- function(){
+template_compute_panel_code <- function(){
   
-"compute_panel_geo <- function(data, scales, keep_id = NULL, drop_id = NULL){
+"compute_panel_geo_XXXX <- function(data, scales, keep_id = NULL, drop_id = NULL){
   
   if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
   if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
   
-  if(!stamp){data <- dplyr::inner_join(data, my_ref_df_w_bb_and_xy_centers)}
-  if( stamp){data <- ref_df_w_bb_and_xy_centers }
+  if(!stamp){data <- dplyr::inner_join(data, geo_ref_XXXX)}
+  if( stamp){data <- geo_ref_XXXX }
   
   data
   
@@ -168,18 +122,18 @@ return_compute_panel_code <- function(){
 ```
 
 ``` r
-return_stat_code <- function(){
+template_stat_code <- function(){
   
 'StatXXXXsf <- ggplot2::ggproto(`_class` = "StatXXXXsf",
                                 `_inherit` = ggplot2::Stat,
-                                required_aes = required_aes,
-                                compute_panel = compute_panel_geo,
-                               default_aes = default_aes)' |> cat()
+                                required_aes = c("fips|county_name|XXXX"),
+                                compute_panel = compute_panel_geo_XXXX,
+                               default_aes = c(label = ggplot2::after_stat(id_col)))' |> cat()
 }
 ```
 
 ``` r
-return_layer_code <- function(){ 'stat_county <- function(
+template_layer_code <- function(){ 'stat_XXXX <- function(
       mapping = NULL,
       data = NULL,
       geom = ggplot2::GeomSf,
@@ -191,7 +145,7 @@ return_layer_code <- function(){ 'stat_county <- function(
       ...) {
 
   c(ggplot2::layer_sf(
-              stat = StatNcfips,  # proto object from step 2
+              stat = StatXXXX,  # proto object from step 2
               geom = geom,  # inherit other behavior
               data = data,
               mapping = mapping,
@@ -227,9 +181,9 @@ nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
 
 nc |>
   dplyr::select(county_name = NAME, fips = FIPS) |>
-  ref_df_add_bb_and_xy_centers(id_col_name = "county_name") ->
+  sf_df_prep_for_stat(id_col_name = "county_name") ->
 nc_geo_reference
-#> Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(geo_df, geometry))):
+#> Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(sf_df, geometry))):
 #> st_point_on_surface may not give correct results for longitude/latitude data
 #> Warning: The `x` argument of `as_tibble.matrix()` must have unique column names if
 #> `.name_repair` is omitted as of tibble 2.0.0.
@@ -241,11 +195,11 @@ nc_geo_reference
 # step 1
 compute_panel_nc <- function(data, scales, keep_id = NULL, drop_id = NULL, stamp = FALSE){
   
-  if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
-  if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
-  
   if(!stamp){data <- dplyr::inner_join(data, nc_geo_reference)}
   if( stamp){data <- nc_geo_reference }
+  
+  if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
+  if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
   
   data
   
@@ -254,7 +208,7 @@ compute_panel_nc <- function(data, scales, keep_id = NULL, drop_id = NULL, stamp
 # step 2
 StatNcsf <- ggplot2::ggproto(`_class` = "StatNcsf",
                                 `_inherit` = ggplot2::Stat,
-                                required_aes = c("fips|county_name"),
+                                # required_aes = c("fips|county_name"),
                                 compute_panel = compute_panel_nc,
                                default_aes = ggplot2::aes(label = after_stat(id_col)))
 
@@ -299,7 +253,54 @@ nc |>
 #> Joining with `by = join_by(fips)`
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-2-1.png)<!-- -->
+
+``` r
+
+
+geom_county <- stat_county
+geom_county_label <- function(...){stat_county(geom = "text",...)}
+stamp_county <- function(...){stat_county(data = mtcars, stamp = T, ...)}
+stamp_county_label <- function(...){stat_county(geom = "text", data = mtcars, stamp = T, ...)}
+
+
+nc |>
+  sf::st_drop_geometry() |>
+  ggplot() +
+  aes(fips = FIPS) +
+  geom_county() + 
+  geom_county_label(check_overlap = T,
+                    color = "grey85") +
+  aes(fill = BIR79) 
+#> Joining with `by = join_by(fips)`
+#> Joining with `by = join_by(fips)`
+```
+
+![](man/figures/README-unnamed-chunk-2-2.png)<!-- -->
+
+``` r
+
+ggplot() + 
+  stamp_county()
+```
+
+![](man/figures/README-unnamed-chunk-2-3.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  stamp_county_label(check_overlap = T)
+```
+
+![](man/figures/README-unnamed-chunk-2-4.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  stamp_county(keep_id = "Wake", fill = "darkred")
+```
+
+![](man/figures/README-unnamed-chunk-2-5.png)<!-- -->
 
 # Part II. Packaging and documentation 🚧 ✅
 
@@ -324,7 +325,11 @@ Package dependencies managed, i.e. `depend::function()` in proposed
 functions and declared in the DESCRIPTION
 
 ``` r
-usethis::use_package("ggplot2")
+usethis::use_package("sf")
+usethis::use_package("dplyr")
+usethis::use_package("tibble")
+usethis::use_package("tidyr")
+usethis::use_package("purrr")
 ```
 
 ### Bit D. Moved functions R folder? 🚧 ✅
@@ -332,7 +337,12 @@ usethis::use_package("ggplot2")
 Use new {readme2pkg} function to do this from readme…
 
 ``` r
-readme2pkg::chunk_to_r("times_two")
+readme2pkg::chunk_to_r("sf_df_return_bbox_df")
+readme2pkg::chunk_to_r("sf_df_add_xy_center_coords")
+readme2pkg::chunk_to_r("sf_df_prep_for_stat")
+readme2pkg::chunk_to_r("template_compute_panel_code")
+readme2pkg::chunk_to_r("template_stat_code")
+readme2pkg::chunk_to_r("template_layer_code")
 ```
 
 ### Bit E. Run `devtools::check()` and addressed errors. 🚧 ✅
@@ -360,8 +370,14 @@ things are are really finalized, then go without colons (and rearrange
 your readme…)
 
 ``` r
-library(mypacakge)  ##<< change to your package name here
-mypacakge:::times_two(10)
+library(sf2stat)  ##<< change to your package name here
+
+nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
+
+nc |>
+  dplyr::select(county_name = NAME, fips = FIPS) |>
+  sf2stat::sf_df_prep_for_stat(id_col_name = "county_name") ->
+nc_geo_reference
 ```
 
 ### Bit H. Chosen a license? 🚧 ✅
@@ -437,15 +453,15 @@ all[11:17]
 #> [3] "[1] stats     graphics  grDevices utils     datasets  methods   base     "
 #> [4] ""                                                                         
 #> [5] "other attached packages:"                                                 
-#> [6] "[1] ggplot2_3.4.4.9000"                                                   
-#> [7] ""
+#> [6] " [1] lubridate_1.9.2      forcats_1.0.0        stringr_1.5.0       "      
+#> [7] " [4] dplyr_1.1.0          purrr_1.0.1          readr_2.1.4         "
 ```
 
 ## `devtools::check()` report
 
 ``` r
 devtools::check(pkg = ".")
-#> Error in `package_file()`:
-#> ! Could not find package root.
-#> ℹ Is '.' inside a package?
+#> ℹ Updating sf2stat documentation
+#> ℹ Loading sf2stat
+#> Error: R CMD check found WARNINGs
 ```
