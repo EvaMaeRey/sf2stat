@@ -46,10 +46,8 @@ navbar:
   components:
     github:
       icon: fab fa-github fa-lg
-      href: https://evamaerey.github.io/sf2stat/
+      href: https://github.com/EvaMaeRey/sf2stat/
 
 authors:
   "Evangeline Reynolds":
     href: https://evamaerey.github.io/io/
-
-
