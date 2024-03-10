@@ -66,22 +66,11 @@
 <div class="row">
   <main id="main" class="col-md-9">
 <div class="section level1">
-<div class="page-header"><h1 id="to-the-reader">
-<em>To the reader</em><a class="anchor" aria-label="anchor" href="#to-the-reader"></a>
+<div class="page-header"><h1 id="part-0-proposal">Part 0. Proposal<a class="anchor" aria-label="anchor" href="#part-0-proposal"></a>
 </h1></div>
-<p>Welcome to the R package building helper <em>readme2pkg.template</em>!</p>
-<p>Below, is a readme that provides steps for building a package. This readme acts as a worksheet, checklist, and control document as functions used in package building are included within.</p>
-<p>We’ll use the <code>{readme2pkg}</code> helper package to send code chunks to different directories in the package.</p>
-<p>To install <code>{readme2pkg}</code>:</p>
-<pre><code><span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install.github</span><span class="op">(</span><span class="st">"EvaMaeRey/readme2pkg"</span><span class="op">)</span></span></code></pre>
-</div>
-<div class="section level1">
-<h1 id="part-0-proposal">Part 0. Proposal<a class="anchor" aria-label="anchor" href="#part-0-proposal"></a>
-</h1>
 <p>Proposing the {sf2stat} package! 🦄 <!-- (typical package introduction write up; but actually aspirational) --></p>
-<p>The goal of {sf2stat} is to make it easier to prep sf data to become part of a ggproto Stat object, which in turn can be used for creating a stat/geom function.</p>
-<p>Without the package, we live in the effort-ful world, in which we’d have to prep our own data including figuring out the bounding box for each geometry, and the centroid for each geometry.</p>
+<p>The goal of {sf2stat} is to make it easier to prep <em>sf data</em> for use in a ggproto Stat computation; the Stat then can be used for creating a stat/geom function to be used in ggplot2 plots.</p>
+<p>Without the package, we live in the effortful world, in which we’d have to prep our own data including figuring out the bounding box for each geometry, and, if we want labeling functionality, the centroid for each geometry.</p>
 <p>With the {sf2stat} package, we’ll live in a different world (🦄 🦄 🦄) where the task is a snap 🫰:</p>
 <p>Proposed API:</p>
 <pre><code><span></span>
@@ -92,17 +81,39 @@
 <div class="section level1">
 <h1 id="part-i-work-out-functionality-">Part I. Work out functionality ✅<a class="anchor" aria-label="anchor" href="#part-i-work-out-functionality-"></a>
 </h1>
-<p>Here is a function that will do some work…</p>
+<p>In this section we’ll use the nc sf dataframe to check out how our functions work.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nc</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu">st_read</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"shape/nc.shp"</span>, package<span class="op">=</span><span class="st">"sf"</span><span class="op">)</span><span class="op">)</span> <span class="op">%&gt;%</span></span>
+<span>  <span class="fu">select</span><span class="op">(</span><span class="va">NAME</span>, <span class="va">FIPS</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Reading layer `nc' from data source </span></span>
+<span><span class="co">#&gt;   `/Library/Frameworks/R.framework/Versions/4.2/Resources/library/sf/shape/nc.shp' </span></span>
+<span><span class="co">#&gt;   using driver `ESRI Shapefile'</span></span>
+<span><span class="co">#&gt; Simple feature collection with 100 features and 14 fields</span></span>
+<span><span class="co">#&gt; Geometry type: MULTIPOLYGON</span></span>
+<span><span class="co">#&gt; Dimension:     XY</span></span>
+<span><span class="co">#&gt; Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965</span></span>
+<span><span class="co">#&gt; Geodetic CRS:  NAD27</span></span>
+<span></span>
+<span><span class="va">nc</span></span>
+<span><span class="co">#&gt; Simple feature collection with 100 features and 2 fields</span></span>
+<span><span class="co">#&gt; Geometry type: MULTIPOLYGON</span></span>
+<span><span class="co">#&gt; Dimension:     XY</span></span>
+<span><span class="co">#&gt; Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965</span></span>
+<span><span class="co">#&gt; Geodetic CRS:  NAD27</span></span>
+<span><span class="co">#&gt; First 10 features:</span></span>
+<span><span class="co">#&gt;           NAME  FIPS                       geometry</span></span>
+<span><span class="co">#&gt; 1         Ashe 37009 MULTIPOLYGON (((-81.47276 3...</span></span>
+<span><span class="co">#&gt; 2    Alleghany 37005 MULTIPOLYGON (((-81.23989 3...</span></span>
+<span><span class="co">#&gt; 3        Surry 37171 MULTIPOLYGON (((-80.45634 3...</span></span>
+<span><span class="co">#&gt; 4    Currituck 37053 MULTIPOLYGON (((-76.00897 3...</span></span>
+<span><span class="co">#&gt; 5  Northampton 37131 MULTIPOLYGON (((-77.21767 3...</span></span>
+<span><span class="co">#&gt; 6     Hertford 37091 MULTIPOLYGON (((-76.74506 3...</span></span>
+<span><span class="co">#&gt; 7       Camden 37029 MULTIPOLYGON (((-76.00897 3...</span></span>
+<span><span class="co">#&gt; 8        Gates 37073 MULTIPOLYGON (((-76.56251 3...</span></span>
+<span><span class="co">#&gt; 9       Warren 37185 MULTIPOLYGON (((-78.30876 3...</span></span>
+<span><span class="co">#&gt; 10      Stokes 37169 MULTIPOLYGON (((-80.02567 3...</span></span></code></pre></div>
+<p>First we have a function that takes an sf data frame and adds columns x and y for the centroids of the geometries.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sf_df_return_bbox_df</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">sf_df</span><span class="op">)</span><span class="op">{</span></span>
-<span>  </span>
-<span>  <span class="va">bb</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu">st_bbox</span><span class="op">(</span><span class="va">sf_df</span><span class="op">)</span></span>
-<span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>xmin <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, ymin <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,</span>
-<span>             xmax <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, ymax <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
-<span></span>
-<span><span class="op">}</span></span></code></pre></div>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sf_df_add_xy_center_coords</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">sf_df</span><span class="op">)</span><span class="op">{</span></span>
 <span></span>
 <span><span class="va">sf_df</span> <span class="op">|&gt;</span></span>
@@ -117,7 +128,48 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="va">sf_df</span>, <span class="va">the_coords</span><span class="op">)</span></span>
 <span></span>
 <span><span class="op">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nc</span> <span class="op">|&gt;</span> <span class="fu">sf_df_add_xy_center_coords</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(sf_df, geometry))):</span></span>
+<span><span class="co">#&gt; st_point_on_surface may not give correct results for longitude/latitude data</span></span>
+<span><span class="co">#&gt; Warning: The `x` argument of `as_tibble.matrix()` must have unique column names if</span></span>
+<span><span class="co">#&gt; `.name_repair` is omitted as of tibble 2.0.0.</span></span>
+<span><span class="co">#&gt; ℹ Using compatibility `.name_repair`.</span></span>
+<span><span class="co">#&gt; This warning is displayed once every 8 hours.</span></span>
+<span><span class="co">#&gt; Call `lifecycle::last_lifecycle_warnings()` to see where this warning was</span></span>
+<span><span class="co">#&gt; generated.</span></span>
+<span><span class="co">#&gt; Simple feature collection with 100 features and 4 fields</span></span>
+<span><span class="co">#&gt; Geometry type: MULTIPOLYGON</span></span>
+<span><span class="co">#&gt; Dimension:     XY</span></span>
+<span><span class="co">#&gt; Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965</span></span>
+<span><span class="co">#&gt; Geodetic CRS:  NAD27</span></span>
+<span><span class="co">#&gt; First 10 features:</span></span>
+<span><span class="co">#&gt;           NAME  FIPS         x        y                       geometry</span></span>
+<span><span class="co">#&gt; 1         Ashe 37009 -81.49496 36.42112 MULTIPOLYGON (((-81.47276 3...</span></span>
+<span><span class="co">#&gt; 2    Alleghany 37005 -81.13241 36.47396 MULTIPOLYGON (((-81.23989 3...</span></span>
+<span><span class="co">#&gt; 3        Surry 37171 -80.69280 36.38828 MULTIPOLYGON (((-80.45634 3...</span></span>
+<span><span class="co">#&gt; 4    Currituck 37053 -75.93852 36.30697 MULTIPOLYGON (((-76.00897 3...</span></span>
+<span><span class="co">#&gt; 5  Northampton 37131 -77.36988 36.35211 MULTIPOLYGON (((-77.21767 3...</span></span>
+<span><span class="co">#&gt; 6     Hertford 37091 -77.04217 36.39709 MULTIPOLYGON (((-76.74506 3...</span></span>
+<span><span class="co">#&gt; 7       Camden 37029 -76.18290 36.36249 MULTIPOLYGON (((-76.00897 3...</span></span>
+<span><span class="co">#&gt; 8        Gates 37073 -76.72199 36.43576 MULTIPOLYGON (((-76.56251 3...</span></span>
+<span><span class="co">#&gt; 9       Warren 37185 -78.11342 36.42681 MULTIPOLYGON (((-78.30876 3...</span></span>
+<span><span class="co">#&gt; 10      Stokes 37169 -80.23459 36.40106 MULTIPOLYGON (((-80.02567 3...</span></span></code></pre></div>
+<p>Second we have a function that’s going to return bounding boxes as a dataframe. For our reference data we need these xmin, xmax variables for each row in our data.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sf_df_return_bbox_df</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">sf_df</span><span class="op">)</span><span class="op">{</span></span>
+<span>  </span>
+<span>  <span class="va">bb</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu">st_bbox</span><span class="op">(</span><span class="va">sf_df</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>xmin <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, ymin <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,</span>
+<span>             xmax <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span>, ymax <span class="op">=</span> <span class="va">bb</span><span class="op">[</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nc</span><span class="op">[</span><span class="fl">10</span>,<span class="op">]</span> <span class="op">|&gt;</span> <span class="fu">sf_df_return_bbox_df</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt;           xmin     ymin      xmax     ymax</span></span>
+<span><span class="co">#&gt; xmin -80.45301 36.25023 -80.02406 36.55104</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sf_df_prep_for_stat</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">sf_df</span>, <span class="va">id_col_name</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span><span class="op">{</span></span>
 <span>  </span>
 <span>  <span class="va">sf_df</span> <span class="op">|&gt;</span></span>
@@ -138,7 +190,7 @@
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">sf_df_w_bb_and_centers</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="op">}</span></span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">template_compute_panel_code</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span><span class="op">{</span></span>
 <span>  </span>
 <span><span class="st">"compute_panel_geo_XXXX &lt;- function(data, scales, keep_id = NULL, drop_id = NULL){</span></span>
@@ -154,7 +206,7 @@
 <span><span class="st">}"</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="op">)</span></span>
 <span>  </span>
 <span><span class="op">}</span></span></code></pre></div>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">template_stat_code</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span><span class="op">{</span></span>
 <span>  </span>
 <span><span class="st">'StatXXXXsf &lt;- ggplot2::ggproto(`_class` = "StatXXXXsf",</span></span>
@@ -163,7 +215,7 @@
 <span><span class="st">                                compute_panel = compute_panel_geo_XXXX,</span></span>
 <span><span class="st">                               default_aes = c(label = ggplot2::after_stat(id_col)))'</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">template_layer_code</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span><span class="op">{</span> <span class="st">'stat_XXXX &lt;- function(</span></span>
 <span><span class="st">      mapping = NULL,</span></span>
 <span><span class="st">      data = NULL,</span></span>
@@ -196,9 +248,15 @@
 <span><span class="op">}</span></span>
 <span>  </span></code></pre></div>
 <div class="section level2">
-<h2 id="try-it-out">Try it out<a class="anchor" aria-label="anchor" href="#try-it-out"></a>
+<h2 id="try-it-out-how-to-use-in-gg-package">Try it out: how to use in gg* package<a class="anchor" aria-label="anchor" href="#try-it-out-how-to-use-in-gg-package"></a>
 </h2>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<p>Let’s see how we might recreate the functionality in the ggnorthcarolina package</p>
+<div class="section level3">
+<h3 id="step-00-prep-reference-data">Step 00. prep reference data<a class="anchor" aria-label="anchor" href="#step-00-prep-reference-data"></a>
+</h3>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">use_data_raw</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">nc</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu">st_read</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"shape/nc.shp"</span>, package<span class="op">=</span><span class="st">"sf"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Reading layer `nc' from data source </span></span>
 <span><span class="co">#&gt;   `/Library/Frameworks/R.framework/Versions/4.2/Resources/library/sf/shape/nc.shp' </span></span>
@@ -214,15 +272,17 @@
 <span>  <span class="fu">sf_df_prep_for_stat</span><span class="op">(</span>id_col_name <span class="op">=</span> <span class="st">"county_name"</span><span class="op">)</span> <span class="op">-&gt;</span></span>
 <span><span class="va">nc_geo_reference</span></span>
 <span><span class="co">#&gt; Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(sf_df, geometry))):</span></span>
-<span><span class="co">#&gt; st_point_on_surface may not give correct results for longitude/latitude data</span></span>
-<span><span class="co">#&gt; Warning: The `x` argument of `as_tibble.matrix()` must have unique column names if</span></span>
-<span><span class="co">#&gt; `.name_repair` is omitted as of tibble 2.0.0.</span></span>
-<span><span class="co">#&gt; ℹ Using compatibility `.name_repair`.</span></span>
-<span><span class="co">#&gt; This warning is displayed once every 8 hours.</span></span>
-<span><span class="co">#&gt; Call `lifecycle::last_lifecycle_warnings()` to see where this warning was</span></span>
-<span><span class="co">#&gt; generated.</span></span>
-<span></span>
-<span><span class="co"># step 1</span></span>
+<span><span class="co">#&gt; st_point_on_surface may not give correct results for longitude/latitude data</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">use_data</span><span class="op">(</span><span class="va">nc_geo_reference</span><span class="op">)</span></span></code></pre></div>
+</div>
+</div>
+</div>
+<div class="section level1">
+<h1 id="step-1-and-2">Step 1 and 2<a class="anchor" aria-label="anchor" href="#step-1-and-2"></a>
+</h1>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># step 1</span></span>
 <span><span class="va">compute_panel_nc</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">scales</span>, <span class="va">keep_id</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">drop_id</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">stamp</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">{</span></span>
 <span>  </span>
 <span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="va">stamp</span><span class="op">)</span><span class="op">{</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu">inner_join</span><span class="op">(</span><span class="va">data</span>, <span class="va">nc_geo_reference</span><span class="op">)</span><span class="op">}</span></span>
@@ -240,9 +300,14 @@
 <span>                                `_inherit` <span class="op">=</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="va">Stat</span>,</span>
 <span>                                <span class="co"># required_aes = c("fips|county_name"),</span></span>
 <span>                                compute_panel <span class="op">=</span> <span class="va">compute_panel_nc</span>,</span>
-<span>                               default_aes <span class="op">=</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">aes</span><span class="op">(</span>label <span class="op">=</span> <span class="fu">after_stat</span><span class="op">(</span><span class="va">id_col</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># step 3</span></span>
+<span>                               default_aes <span class="op">=</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">aes</span><span class="op">(</span>label <span class="op">=</span> <span class="fu">after_stat</span><span class="op">(</span><span class="va">id_col</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<div class="section level2">
+<h2 id="step-3">Step 3<a class="anchor" aria-label="anchor" href="#step-3"></a>
+</h2>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">readme2pkg</span><span class="fu">::</span><span class="fu">chunk_to_r</span><span class="op">(</span><span class="st">"stat_county"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># step 3</span></span>
 <span><span class="va">stat_county</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span></span>
 <span>      <span class="va">mapping</span> <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>      <span class="va">data</span> <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -270,10 +335,14 @@
 <span>                       datum <span class="op">=</span> <span class="va">crs</span>,</span>
 <span>                       default <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>     <span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span></span>
-<span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level1">
+<h1 id="test-it-out">test it out<a class="anchor" aria-label="anchor" href="#test-it-out"></a>
+</h1>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span><span class="va">nc</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">sf</span><span class="fu">::</span><span class="fu">st_drop_geometry</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">ggplot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
@@ -281,17 +350,33 @@
 <span>  <span class="fu">stat_county</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> </span>
 <span>  <span class="fu">aes</span><span class="op">(</span>fill <span class="op">=</span> <span class="va">BIR79</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Joining with `by = join_by(fips)`</span></span></code></pre></div>
-<p><img src="reference/figures/README-unnamed-chunk-2-1.png"><!-- --></p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span></span>
-<span></span>
-<span><span class="va">geom_county</span> <span class="op">&lt;-</span> <span class="va">stat_county</span></span>
+<p><img src="reference/figures/README-unnamed-chunk-8-1.png"><!-- --></p>
+<div class="section level3">
+<h3 id="make-derivitive-functions-aliases">Make derivitive functions, aliases<a class="anchor" aria-label="anchor" href="#make-derivitive-functions-aliases"></a>
+</h3>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">geom_county</span> <span class="op">&lt;-</span> <span class="va">stat_county</span></span>
 <span><span class="va">geom_county_label</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span><span class="op">{</span><span class="fu">stat_county</span><span class="op">(</span>geom <span class="op">=</span> <span class="st">"text"</span>,<span class="va">...</span><span class="op">)</span><span class="op">}</span></span>
-<span><span class="va">stamp_county</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span><span class="op">{</span><span class="fu">stat_county</span><span class="op">(</span>data <span class="op">=</span> <span class="va">mtcars</span>, stamp <span class="op">=</span> <span class="cn">T</span>, <span class="va">...</span><span class="op">)</span><span class="op">}</span></span>
-<span><span class="va">stamp_county_label</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span><span class="op">{</span><span class="fu">stat_county</span><span class="op">(</span>geom <span class="op">=</span> <span class="st">"text"</span>, data <span class="op">=</span> <span class="va">mtcars</span>, stamp <span class="op">=</span> <span class="cn">T</span>, <span class="va">...</span><span class="op">)</span><span class="op">}</span></span>
-<span></span>
-<span></span>
-<span><span class="va">nc</span> <span class="op">|&gt;</span></span>
+<span><span class="va">stamp_county</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span><span class="op">{</span></span>
+<span>  <span class="fu">stat_county</span><span class="op">(</span>stamp <span class="op">=</span> <span class="cn">T</span>, </span>
+<span>              data <span class="op">=</span> <span class="va">mtcars</span>,</span>
+<span>              <span class="fu">aes</span><span class="op">(</span>fill <span class="op">=</span> <span class="cn">NULL</span>, color <span class="op">=</span> <span class="cn">NULL</span>, label <span class="op">=</span> <span class="cn">NULL</span>, </span>
+<span>                  fips <span class="op">=</span> <span class="cn">NULL</span>, county_name <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span>, </span>
+<span>              <span class="va">...</span><span class="op">)</span><span class="op">}</span></span>
+<span><span class="va">stamp_county_label</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span><span class="op">{</span></span>
+<span>  <span class="fu">stat_county</span><span class="op">(</span>stamp <span class="op">=</span> <span class="cn">T</span>, </span>
+<span>              geom <span class="op">=</span> <span class="st">"text"</span>, </span>
+<span>              data <span class="op">=</span> <span class="va">mtcars</span>, </span>
+<span>              <span class="fu">aes</span><span class="op">(</span>fill <span class="op">=</span> <span class="cn">NULL</span>, color <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>                  fips <span class="op">=</span> <span class="cn">NULL</span>, county_name <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span>, </span>
+<span>              <span class="va">...</span><span class="op">)</span><span class="op">}</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level1">
+<h1 id="try-those-out">try those out<a class="anchor" aria-label="anchor" href="#try-those-out"></a>
+</h1>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nc</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">sf</span><span class="fu">::</span><span class="fu">st_drop_geometry</span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">ggplot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">aes</span><span class="op">(</span>fips <span class="op">=</span> <span class="va">FIPS</span><span class="op">)</span> <span class="op">+</span></span>
@@ -301,22 +386,61 @@
 <span>  <span class="fu">aes</span><span class="op">(</span>fill <span class="op">=</span> <span class="va">BIR79</span><span class="op">)</span> </span>
 <span><span class="co">#&gt; Joining with `by = join_by(fips)`</span></span>
 <span><span class="co">#&gt; Joining with `by = join_by(fips)`</span></span></code></pre></div>
-<p><img src="reference/figures/README-unnamed-chunk-2-2.png"><!-- --></p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<p><img src="reference/figures/README-unnamed-chunk-9-1.png"><!-- --></p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span></span>
+<span><span class="fu">last_plot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> </span>
+<span>  <span class="fu">stamp_county</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> </span>
+<span>  <span class="fu">stamp_county_label</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Joining with `by = join_by(fips)`</span></span>
+<span><span class="co">#&gt; Joining with `by = join_by(fips)`</span></span></code></pre></div>
+<p><img src="reference/figures/README-unnamed-chunk-9-2.png"><!-- --></p>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="fu">ggplot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> </span>
 <span>  <span class="fu">stamp_county</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p><img src="reference/figures/README-unnamed-chunk-2-3.png"><!-- --></p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<p><img src="reference/figures/README-unnamed-chunk-9-3.png"><!-- --></p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="fu">last_plot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> </span>
 <span>  <span class="fu">stamp_county_label</span><span class="op">(</span>check_overlap <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span></code></pre></div>
-<p><img src="reference/figures/README-unnamed-chunk-2-4.png"><!-- --></p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<p><img src="reference/figures/README-unnamed-chunk-9-4.png"><!-- --></p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="fu">last_plot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span> </span>
 <span>  <span class="fu">stamp_county</span><span class="op">(</span>keep_id <span class="op">=</span> <span class="st">"Wake"</span>, fill <span class="op">=</span> <span class="st">"darkred"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="reference/figures/README-unnamed-chunk-2-5.png"><!-- --></p>
+<p><img src="reference/figures/README-unnamed-chunk-9-5.png"><!-- --></p>
+</div>
+<div class="section level1">
+<h1 id="wanting-even-more">Wanting even more?<a class="anchor" aria-label="anchor" href="#wanting-even-more"></a>
+</h1>
+<div class="section level2">
+<h2 id="stamps-for-each-polygon">Stamps for each polygon?<a class="anchor" aria-label="anchor" href="#stamps-for-each-polygon"></a>
+</h2>
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nc_geo_reference</span><span class="op">$</span><span class="va">county_name</span></span>
+<span><span class="co">#&gt;   [1] "Ashe"         "Alleghany"    "Surry"        "Currituck"    "Northampton" </span></span>
+<span><span class="co">#&gt;   [6] "Hertford"     "Camden"       "Gates"        "Warren"       "Stokes"      </span></span>
+<span><span class="co">#&gt;  [11] "Caswell"      "Rockingham"   "Granville"    "Person"       "Vance"       </span></span>
+<span><span class="co">#&gt;  [16] "Halifax"      "Pasquotank"   "Wilkes"       "Watauga"      "Perquimans"  </span></span>
+<span><span class="co">#&gt;  [21] "Chowan"       "Avery"        "Yadkin"       "Franklin"     "Forsyth"     </span></span>
+<span><span class="co">#&gt;  [26] "Guilford"     "Alamance"     "Bertie"       "Orange"       "Durham"      </span></span>
+<span><span class="co">#&gt;  [31] "Nash"         "Mitchell"     "Edgecombe"    "Caldwell"     "Yancey"      </span></span>
+<span><span class="co">#&gt;  [36] "Martin"       "Wake"         "Madison"      "Iredell"      "Davie"       </span></span>
+<span><span class="co">#&gt;  [41] "Alexander"    "Davidson"     "Burke"        "Washington"   "Tyrrell"     </span></span>
+<span><span class="co">#&gt;  [46] "McDowell"     "Randolph"     "Chatham"      "Wilson"       "Rowan"       </span></span>
+<span><span class="co">#&gt;  [51] "Pitt"         "Catawba"      "Buncombe"     "Johnston"     "Haywood"     </span></span>
+<span><span class="co">#&gt;  [56] "Dare"         "Beaufort"     "Swain"        "Greene"       "Lee"         </span></span>
+<span><span class="co">#&gt;  [61] "Rutherford"   "Wayne"        "Harnett"      "Cleveland"    "Lincoln"     </span></span>
+<span><span class="co">#&gt;  [66] "Jackson"      "Moore"        "Mecklenburg"  "Cabarrus"     "Montgomery"  </span></span>
+<span><span class="co">#&gt;  [71] "Stanly"       "Henderson"    "Graham"       "Lenoir"       "Transylvania"</span></span>
+<span><span class="co">#&gt;  [76] "Gaston"       "Polk"         "Macon"        "Sampson"      "Pamlico"     </span></span>
+<span><span class="co">#&gt;  [81] "Cherokee"     "Cumberland"   "Jones"        "Union"        "Anson"       </span></span>
+<span><span class="co">#&gt;  [86] "Hoke"         "Hyde"         "Duplin"       "Richmond"     "Clay"        </span></span>
+<span><span class="co">#&gt;  [91] "Craven"       "Scotland"     "Onslow"       "Robeson"      "Carteret"    </span></span>
+<span><span class="co">#&gt;  [96] "Bladen"       "Pender"       "Columbus"     "New Hanover"  "Brunswick"</span></span>
+<span></span>
+<span><span class="va">stamp_county_wake</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span><span class="op">{</span><span class="fu">stamp_county</span><span class="op">(</span>keep_id <span class="op">=</span> <span class="st">"Wake"</span>, <span class="va">...</span><span class="op">)</span><span class="op">}</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level1">
@@ -328,7 +452,7 @@
 <div class="section level3">
 <h3 id="bit-a-created-package-archetecture-running-devtoolscreate-in-interactive-session--">Bit A. Created package archetecture, running <code>devtools::create(".")</code> in interactive session. 🚧 ✅<a class="anchor" aria-label="anchor" href="#bit-a-created-package-archetecture-running-devtoolscreate-in-interactive-session--"></a>
 </h3>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">create</span><span class="op">(</span><span class="st">"."</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -340,7 +464,7 @@
 <h3 id="bit-c-managed-dependencies---">Bit C. Managed dependencies ? 🚧 ✅<a class="anchor" aria-label="anchor" href="#bit-c-managed-dependencies---"></a>
 </h3>
 <p>Package dependencies managed, i.e. <code>depend::function()</code> in proposed functions and declared in the DESCRIPTION</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">use_package</span><span class="op">(</span><span class="st">"sf"</span><span class="op">)</span></span>
 <span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">use_package</span><span class="op">(</span><span class="st">"dplyr"</span><span class="op">)</span></span>
 <span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">use_package</span><span class="op">(</span><span class="st">"tibble"</span><span class="op">)</span></span>
@@ -351,7 +475,7 @@
 <h3 id="bit-d-moved-functions-r-folder--">Bit D. Moved functions R folder? 🚧 ✅<a class="anchor" aria-label="anchor" href="#bit-d-moved-functions-r-folder--"></a>
 </h3>
 <p>Use new {readme2pkg} function to do this from readme…</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">readme2pkg</span><span class="fu">::</span><span class="fu">chunk_to_r</span><span class="op">(</span><span class="st">"sf_df_return_bbox_df"</span><span class="op">)</span></span>
 <span><span class="fu">readme2pkg</span><span class="fu">::</span><span class="fu">chunk_to_r</span><span class="op">(</span><span class="st">"sf_df_add_xy_center_coords"</span><span class="op">)</span></span>
 <span><span class="fu">readme2pkg</span><span class="fu">::</span><span class="fu">chunk_to_r</span><span class="op">(</span><span class="st">"sf_df_prep_for_stat"</span><span class="op">)</span></span>
@@ -362,13 +486,13 @@
 <div class="section level3">
 <h3 id="bit-e-run-devtoolscheck-and-addressed-errors--">Bit E. Run <code>devtools::check()</code> and addressed errors. 🚧 ✅<a class="anchor" aria-label="anchor" href="#bit-e-run-devtoolscheck-and-addressed-errors--"></a>
 </h3>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">check</span><span class="op">(</span>pkg <span class="op">=</span> <span class="st">"."</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="bit-f-build-package--">Bit F. Build package 🚧 ✅<a class="anchor" aria-label="anchor" href="#bit-f-build-package--"></a>
 </h3>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">build</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -376,9 +500,9 @@
 </h3>
 <p>The goal of the {xxxx} package is to …</p>
 <p>Install package with:</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">installgithub</span>(<span class="st">"EvaMaeRey/readme2pkg.template"</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb30"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">installgithub</span>(<span class="st">"EvaMaeRey/readme2pkg.template"</span>)</span></code></pre></div>
 <p>Once functions are exported you can remove go to two colons, and when things are are really finalized, then go without colons (and rearrange your readme…)</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://evamaerey.github.io/sf2stat/" class="external-link">sf2stat</a></span><span class="op">)</span>  <span class="co">##&lt;&lt; change to your package name here</span></span>
 <span></span>
 <span><span class="va">nc</span> <span class="op">&lt;-</span> <span class="fu">sf</span><span class="fu">::</span><span class="fu">st_read</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"shape/nc.shp"</span>, package<span class="op">=</span><span class="st">"sf"</span><span class="op">)</span><span class="op">)</span></span>
@@ -391,13 +515,13 @@
 <div class="section level3">
 <h3 id="bit-h-chosen-a-license--">Bit H. Chosen a license? 🚧 ✅<a class="anchor" aria-label="anchor" href="#bit-h-chosen-a-license--"></a>
 </h3>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">use_mit_license</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="bit-i-add-lifecycle-badge-experimental">Bit I. Add lifecycle badge (experimental)<a class="anchor" aria-label="anchor" href="#bit-i-add-lifecycle-badge-experimental"></a>
 </h3>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">use_lifecycle_badge</span><span class="op">(</span><span class="st">"experimental"</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
@@ -417,7 +541,7 @@
 <h3 id="bit-b-written-formal-tests-of-functions-and-save-to-test-that-folders--">Bit B. Written formal tests of functions and save to test that folders 🚧 ✅<a class="anchor" aria-label="anchor" href="#bit-b-written-formal-tests-of-functions-and-save-to-test-that-folders--"></a>
 </h3>
 <p>That would look like this…</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://testthat.r-lib.org" class="external-link">testthat</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">test_that</span><span class="op">(</span><span class="st">"calc times 2 works"</span>, <span class="op">{</span></span>
@@ -425,7 +549,7 @@
 <span>  <span class="fu">expect_equal</span><span class="op">(</span><span class="fu">times_two</span><span class="op">(</span><span class="fl">5</span><span class="op">)</span>, <span class="fl">10</span><span class="op">)</span></span>
 <span>  </span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">readme2pkg</span><span class="fu">::</span><span class="fu">chunk_to_tests_testthat</span><span class="op">(</span><span class="st">"test_calc_times_two_works"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -464,14 +588,14 @@
 <div class="section level2">
 <h2 id="edit-description-file">Edit Description file<a class="anchor" aria-label="anchor" href="#edit-description-file"></a>
 </h2>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines</a></span><span class="op">(</span><span class="st">"DESCRIPTION"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="environment">Environment<a class="anchor" aria-label="anchor" href="#environment"></a>
 </h2>
 <p>Here I just want to print the packages and the versions</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html" class="external-link">capture.output</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">all</span><span class="op">[</span><span class="fl">11</span><span class="op">:</span><span class="fl">17</span><span class="op">]</span></span>
 <span><span class="co">#&gt; [1] ""                                                                         </span></span>
@@ -486,7 +610,7 @@
 <h2 id="devtoolscheck-report">
 <code>devtools::check()</code> report<a class="anchor" aria-label="anchor" href="#devtoolscheck-report"></a>
 </h2>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">check</span><span class="op">(</span>pkg <span class="op">=</span> <span class="st">"."</span><span class="op">)</span></span>
 <span><span class="co">#&gt; ℹ Updating sf2stat documentation</span></span>
 <span><span class="co">#&gt; ℹ Loading sf2stat</span></span>
