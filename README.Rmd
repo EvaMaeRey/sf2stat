@@ -19,34 +19,17 @@ knitr::opts_chunk$set(
 library(tidyverse)
 ```
 
-# *To the reader* 
 
-Welcome to the R package building helper *readme2pkg.template*!
-
-Below, is a readme that provides steps for building a package.  This readme acts as a worksheet, checklist, and control document as functions used in package building are included within.  
-
-We'll use the `{readme2pkg}` helper package to send code chunks to different directories in the package.  
-
-To install `{readme2pkg}`:
-
-```
-
-remotes::install.github("EvaMaeRey/readme2pkg")
-
-```
 
 # Part 0. Proposal
 
 Proposing the {sf2stat} package! 🦄 
 <!-- (typical package introduction write up; but actually aspirational) -->
 
-The goal of {sf2stat} is to make it easier to prep sf data to become part of a ggproto Stat object, which in turn can be used for creating a stat/geom function.
+The goal of {sf2stat} is to make it easier to prep *sf data* for use in a ggproto Stat computation; the Stat then can be used for creating a stat/geom function to be used in ggplot2 plots.
 
+Without the package, we live in the effortful world, in which we'd have to prep our own data including figuring out the bounding box for each geometry, and, if we want labeling functionality, the centroid for each geometry.  
 
-Without the package, we live in the effort-ful world, in which we'd have to prep our own data including figuring out the bounding box for each geometry, and the centroid for each geometry.  
-
-
-  
 With the {sf2stat} package, we'll live in a different world (🦄 🦄 🦄) where the task is a snap 🫰: 
 
 Proposed API:
@@ -63,20 +46,17 @@ my_geom_ref_data <- sf_df_prep_for_stat(data, id_col_name = county_name)
 
 # Part I. Work out functionality  ✅ 
 
-Here is a function that will do some work...
+In this section we'll use the nc sf dataframe to check out how our functions work.
 
+```{r}
+nc <- sf::st_read(system.file("shape/nc.shp", package="sf")) %>%
+  select(NAME, FIPS)
 
-```{r sf_df_return_bbox_df}
-sf_df_return_bbox_df <- function(sf_df){
-  
-  bb <- sf::st_bbox(sf_df)
-
-  data.frame(xmin = bb[1], ymin = bb[2],
-             xmax = bb[3], ymax = bb[4])
-
-}
+nc
 ```
 
+
+First we have a function that takes an sf data frame and adds columns x and y for the centroids of the geometries.
 
 ```{r sf_df_add_xy_center_coords}
 sf_df_add_xy_center_coords <- function(sf_df){
@@ -94,6 +74,31 @@ cbind(sf_df, the_coords)
 
 }
 ```
+
+
+```{r}
+nc |> sf_df_add_xy_center_coords()
+```
+
+
+Second we have a function that's going to return bounding boxes as a dataframe.  For our reference data we need these xmin, xmax variables for each row in our data.
+
+```{r sf_df_return_bbox_df}
+sf_df_return_bbox_df <- function(sf_df){
+  
+  bb <- sf::st_bbox(sf_df)
+
+  data.frame(xmin = bb[1], ymin = bb[2],
+             xmax = bb[3], ymax = bb[4])
+
+}
+```
+
+```{r}
+nc[10,] |> sf_df_return_bbox_df()
+```
+
+
 
 ```{r sf_df_prep_for_stat}
 sf_df_prep_for_stat <- function(sf_df, id_col_name = NULL){
@@ -184,16 +189,34 @@ template_layer_code <- function(){ 'stat_XXXX <- function(
 
 
 
-## Try it out
+## Try it out: how to use in gg* package
 
-```{r}
+Let's see how we might recreate the functionality in the ggnorthcarolina package
+
+
+### Step 00. prep reference data
+
+```{r, eval = F}
+usethis::use_data_raw()
+```
+
+```{r nc_geo_reference_prep, eval = T}
 nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
 
 nc |>
   dplyr::select(county_name = NAME, fips = FIPS) |>
   sf_df_prep_for_stat(id_col_name = "county_name") ->
 nc_geo_reference
+```
 
+
+```{r, eval = F}
+usethis::use_data(nc_geo_reference)
+```
+
+# Step 1 and 2
+
+```{r StatNcsf}
 # step 1
 compute_panel_nc <- function(data, scales, keep_id = NULL, drop_id = NULL, stamp = FALSE){
   
@@ -213,7 +236,17 @@ StatNcsf <- ggplot2::ggproto(`_class` = "StatNcsf",
                                 # required_aes = c("fips|county_name"),
                                 compute_panel = compute_panel_nc,
                                default_aes = ggplot2::aes(label = after_stat(id_col)))
+```
 
+
+
+## Step 3
+
+```{r, eval = F}
+readme2pkg::chunk_to_r("stat_county")
+```
+
+```{r stat_county}
 # step 3
 stat_county <- function(
       mapping = NULL,
@@ -243,8 +276,13 @@ stat_county <- function(
                        default = TRUE)
      )
   }
+```
 
 
+
+# test it out
+
+```{r}
 library(ggplot2)
 nc |>
   sf::st_drop_geometry() |>
@@ -252,14 +290,35 @@ nc |>
   aes(fips = FIPS) +
   stat_county() + 
   aes(fill = BIR79)
+```
 
 
+### Make derivitive functions, aliases
+
+
+```{r geom_county}
 geom_county <- stat_county
 geom_county_label <- function(...){stat_county(geom = "text",...)}
-stamp_county <- function(...){stat_county(data = mtcars, stamp = T, ...)}
-stamp_county_label <- function(...){stat_county(geom = "text", data = mtcars, stamp = T, ...)}
+stamp_county <- function(...){
+  stat_county(stamp = T, 
+              data = mtcars,
+              aes(fill = NULL, color = NULL, label = NULL, 
+                  fips = NULL, county_name = NULL), 
+              ...)}
+stamp_county_label <- function(...){
+  stat_county(stamp = T, 
+              geom = "text", 
+              data = mtcars, 
+              aes(fill = NULL, color = NULL,
+                  fips = NULL, county_name = NULL), 
+              ...)}
+```
 
 
+
+# try those out
+
+```{r}
 nc |>
   sf::st_drop_geometry() |>
   ggplot() +
@@ -269,6 +328,10 @@ nc |>
                     color = "grey85") +
   aes(fill = BIR79) 
 
+last_plot() + 
+  stamp_county() + 
+  stamp_county_label()
+
 ggplot() + 
   stamp_county()
 
@@ -277,8 +340,22 @@ last_plot() +
 
 last_plot() + 
   stamp_county(keep_id = "Wake", fill = "darkred")
+```
+
+# Wanting even more?
+
+## Stamps for each polygon?
+
+```{r}
+nc_geo_reference$county_name
+
+stamp_county_wake <- function(...){stamp_county(keep_id = "Wake", ...)}
+
 
 ```
+
+
+
 
 
 # Part II. Packaging and documentation  🚧 ✅ 

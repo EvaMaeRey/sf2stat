@@ -5,36 +5,19 @@
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 <!-- badges: end -->
 
-# *To the reader*
-
-Welcome to the R package building helper *readme2pkg.template*\!
-
-Below, is a readme that provides steps for building a package. This
-readme acts as a worksheet, checklist, and control document as functions
-used in package building are included within.
-
-We’ll use the `{readme2pkg}` helper package to send code chunks to
-different directories in the package.
-
-To install `{readme2pkg}`:
-
-``` 
-
-remotes::install.github("EvaMaeRey/readme2pkg")
-```
-
 # Part 0. Proposal
 
 Proposing the {sf2stat} package\! 🦄
 <!-- (typical package introduction write up; but actually aspirational) -->
 
-The goal of {sf2stat} is to make it easier to prep sf data to become
-part of a ggproto Stat object, which in turn can be used for creating a
-stat/geom function.
+The goal of {sf2stat} is to make it easier to prep *sf data* for use in
+a ggproto Stat computation; the Stat then can be used for creating a
+stat/geom function to be used in ggplot2 plots.
 
-Without the package, we live in the effort-ful world, in which we’d have
+Without the package, we live in the effortful world, in which we’d have
 to prep our own data including figuring out the bounding box for each
-geometry, and the centroid for each geometry.
+geometry, and, if we want labeling functionality, the centroid for each
+geometry.
 
 With the {sf2stat} package, we’ll live in a different world (🦄 🦄 🦄)
 where the task is a snap 🫰:
@@ -50,18 +33,43 @@ my_geom_ref_data <- sf_df_prep_for_stat(data, id_col_name = county_name)
 
 # Part I. Work out functionality ✅
 
-Here is a function that will do some work…
+In this section we’ll use the nc sf dataframe to check out how our
+functions work.
 
 ``` r
-sf_df_return_bbox_df <- function(sf_df){
-  
-  bb <- sf::st_bbox(sf_df)
+nc <- sf::st_read(system.file("shape/nc.shp", package="sf")) %>%
+  select(NAME, FIPS)
+#> Reading layer `nc' from data source 
+#>   `/Library/Frameworks/R.framework/Versions/4.2/Resources/library/sf/shape/nc.shp' 
+#>   using driver `ESRI Shapefile'
+#> Simple feature collection with 100 features and 14 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
+#> Geodetic CRS:  NAD27
 
-  data.frame(xmin = bb[1], ymin = bb[2],
-             xmax = bb[3], ymax = bb[4])
-
-}
+nc
+#> Simple feature collection with 100 features and 2 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
+#> Geodetic CRS:  NAD27
+#> First 10 features:
+#>           NAME  FIPS                       geometry
+#> 1         Ashe 37009 MULTIPOLYGON (((-81.47276 3...
+#> 2    Alleghany 37005 MULTIPOLYGON (((-81.23989 3...
+#> 3        Surry 37171 MULTIPOLYGON (((-80.45634 3...
+#> 4    Currituck 37053 MULTIPOLYGON (((-76.00897 3...
+#> 5  Northampton 37131 MULTIPOLYGON (((-77.21767 3...
+#> 6     Hertford 37091 MULTIPOLYGON (((-76.74506 3...
+#> 7       Camden 37029 MULTIPOLYGON (((-76.00897 3...
+#> 8        Gates 37073 MULTIPOLYGON (((-76.56251 3...
+#> 9       Warren 37185 MULTIPOLYGON (((-78.30876 3...
+#> 10      Stokes 37169 MULTIPOLYGON (((-80.02567 3...
 ```
+
+First we have a function that takes an sf data frame and adds columns x
+and y for the centroids of the geometries.
 
 ``` r
 sf_df_add_xy_center_coords <- function(sf_df){
@@ -78,6 +86,56 @@ the_coords <- do.call(rbind, sf::st_geometry(points_sf)) |>
 cbind(sf_df, the_coords)
 
 }
+```
+
+``` r
+nc |> sf_df_add_xy_center_coords()
+#> Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(sf_df, geometry))):
+#> st_point_on_surface may not give correct results for longitude/latitude data
+#> Warning: The `x` argument of `as_tibble.matrix()` must have unique column names if
+#> `.name_repair` is omitted as of tibble 2.0.0.
+#> ℹ Using compatibility `.name_repair`.
+#> This warning is displayed once every 8 hours.
+#> Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+#> generated.
+#> Simple feature collection with 100 features and 4 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
+#> Geodetic CRS:  NAD27
+#> First 10 features:
+#>           NAME  FIPS         x        y                       geometry
+#> 1         Ashe 37009 -81.49496 36.42112 MULTIPOLYGON (((-81.47276 3...
+#> 2    Alleghany 37005 -81.13241 36.47396 MULTIPOLYGON (((-81.23989 3...
+#> 3        Surry 37171 -80.69280 36.38828 MULTIPOLYGON (((-80.45634 3...
+#> 4    Currituck 37053 -75.93852 36.30697 MULTIPOLYGON (((-76.00897 3...
+#> 5  Northampton 37131 -77.36988 36.35211 MULTIPOLYGON (((-77.21767 3...
+#> 6     Hertford 37091 -77.04217 36.39709 MULTIPOLYGON (((-76.74506 3...
+#> 7       Camden 37029 -76.18290 36.36249 MULTIPOLYGON (((-76.00897 3...
+#> 8        Gates 37073 -76.72199 36.43576 MULTIPOLYGON (((-76.56251 3...
+#> 9       Warren 37185 -78.11342 36.42681 MULTIPOLYGON (((-78.30876 3...
+#> 10      Stokes 37169 -80.23459 36.40106 MULTIPOLYGON (((-80.02567 3...
+```
+
+Second we have a function that’s going to return bounding boxes as a
+dataframe. For our reference data we need these xmin, xmax variables for
+each row in our data.
+
+``` r
+sf_df_return_bbox_df <- function(sf_df){
+  
+  bb <- sf::st_bbox(sf_df)
+
+  data.frame(xmin = bb[1], ymin = bb[2],
+             xmax = bb[3], ymax = bb[4])
+
+}
+```
+
+``` r
+nc[10,] |> sf_df_return_bbox_df()
+#>           xmin     ymin      xmax     ymax
+#> xmin -80.45301 36.25023 -80.02406 36.55104
 ```
 
 ``` r
@@ -166,7 +224,16 @@ template_layer_code <- function(){ 'stat_XXXX <- function(
   
 ```
 
-## Try it out
+## Try it out: how to use in gg\* package
+
+Let’s see how we might recreate the functionality in the ggnorthcarolina
+package
+
+### Step 00. prep reference data
+
+``` r
+usethis::use_data_raw()
+```
 
 ``` r
 nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
@@ -185,13 +252,15 @@ nc |>
 nc_geo_reference
 #> Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(sf_df, geometry))):
 #> st_point_on_surface may not give correct results for longitude/latitude data
-#> Warning: The `x` argument of `as_tibble.matrix()` must have unique column names if
-#> `.name_repair` is omitted as of tibble 2.0.0.
-#> ℹ Using compatibility `.name_repair`.
-#> This warning is displayed once every 8 hours.
-#> Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-#> generated.
+```
 
+``` r
+usethis::use_data(nc_geo_reference)
+```
+
+# Step 1 and 2
+
+``` r
 # step 1
 compute_panel_nc <- function(data, scales, keep_id = NULL, drop_id = NULL, stamp = FALSE){
   
@@ -211,7 +280,15 @@ StatNcsf <- ggplot2::ggproto(`_class` = "StatNcsf",
                                 # required_aes = c("fips|county_name"),
                                 compute_panel = compute_panel_nc,
                                default_aes = ggplot2::aes(label = after_stat(id_col)))
+```
 
+## Step 3
+
+``` r
+readme2pkg::chunk_to_r("stat_county")
+```
+
+``` r
 # step 3
 stat_county <- function(
       mapping = NULL,
@@ -241,8 +318,11 @@ stat_county <- function(
                        default = TRUE)
      )
   }
+```
 
+# test it out
 
+``` r
 library(ggplot2)
 nc |>
   sf::st_drop_geometry() |>
@@ -253,17 +333,31 @@ nc |>
 #> Joining with `by = join_by(fips)`
 ```
 
-![](man/figures/README-unnamed-chunk-2-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
+
+### Make derivitive functions, aliases
 
 ``` r
-
-
 geom_county <- stat_county
 geom_county_label <- function(...){stat_county(geom = "text",...)}
-stamp_county <- function(...){stat_county(data = mtcars, stamp = T, ...)}
-stamp_county_label <- function(...){stat_county(geom = "text", data = mtcars, stamp = T, ...)}
+stamp_county <- function(...){
+  stat_county(stamp = T, 
+              data = mtcars,
+              aes(fill = NULL, color = NULL, label = NULL, 
+                  fips = NULL, county_name = NULL), 
+              ...)}
+stamp_county_label <- function(...){
+  stat_county(stamp = T, 
+              geom = "text", 
+              data = mtcars, 
+              aes(fill = NULL, color = NULL,
+                  fips = NULL, county_name = NULL), 
+              ...)}
+```
 
+# try those out
 
+``` r
 nc |>
   sf::st_drop_geometry() |>
   ggplot() +
@@ -276,7 +370,18 @@ nc |>
 #> Joining with `by = join_by(fips)`
 ```
 
-![](man/figures/README-unnamed-chunk-2-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  stamp_county() + 
+  stamp_county_label()
+#> Joining with `by = join_by(fips)`
+#> Joining with `by = join_by(fips)`
+```
+
+![](man/figures/README-unnamed-chunk-9-2.png)<!-- -->
 
 ``` r
 
@@ -284,7 +389,7 @@ ggplot() +
   stamp_county()
 ```
 
-![](man/figures/README-unnamed-chunk-2-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-9-3.png)<!-- -->
 
 ``` r
 
@@ -292,7 +397,7 @@ last_plot() +
   stamp_county_label(check_overlap = T)
 ```
 
-![](man/figures/README-unnamed-chunk-2-4.png)<!-- -->
+![](man/figures/README-unnamed-chunk-9-4.png)<!-- -->
 
 ``` r
 
@@ -300,7 +405,37 @@ last_plot() +
   stamp_county(keep_id = "Wake", fill = "darkred")
 ```
 
-![](man/figures/README-unnamed-chunk-2-5.png)<!-- -->
+![](man/figures/README-unnamed-chunk-9-5.png)<!-- -->
+
+# Wanting even more?
+
+## Stamps for each polygon?
+
+``` r
+nc_geo_reference$county_name
+#>   [1] "Ashe"         "Alleghany"    "Surry"        "Currituck"    "Northampton" 
+#>   [6] "Hertford"     "Camden"       "Gates"        "Warren"       "Stokes"      
+#>  [11] "Caswell"      "Rockingham"   "Granville"    "Person"       "Vance"       
+#>  [16] "Halifax"      "Pasquotank"   "Wilkes"       "Watauga"      "Perquimans"  
+#>  [21] "Chowan"       "Avery"        "Yadkin"       "Franklin"     "Forsyth"     
+#>  [26] "Guilford"     "Alamance"     "Bertie"       "Orange"       "Durham"      
+#>  [31] "Nash"         "Mitchell"     "Edgecombe"    "Caldwell"     "Yancey"      
+#>  [36] "Martin"       "Wake"         "Madison"      "Iredell"      "Davie"       
+#>  [41] "Alexander"    "Davidson"     "Burke"        "Washington"   "Tyrrell"     
+#>  [46] "McDowell"     "Randolph"     "Chatham"      "Wilson"       "Rowan"       
+#>  [51] "Pitt"         "Catawba"      "Buncombe"     "Johnston"     "Haywood"     
+#>  [56] "Dare"         "Beaufort"     "Swain"        "Greene"       "Lee"         
+#>  [61] "Rutherford"   "Wayne"        "Harnett"      "Cleveland"    "Lincoln"     
+#>  [66] "Jackson"      "Moore"        "Mecklenburg"  "Cabarrus"     "Montgomery"  
+#>  [71] "Stanly"       "Henderson"    "Graham"       "Lenoir"       "Transylvania"
+#>  [76] "Gaston"       "Polk"         "Macon"        "Sampson"      "Pamlico"     
+#>  [81] "Cherokee"     "Cumberland"   "Jones"        "Union"        "Anson"       
+#>  [86] "Hoke"         "Hyde"         "Duplin"       "Richmond"     "Clay"        
+#>  [91] "Craven"       "Scotland"     "Onslow"       "Robeson"      "Carteret"    
+#>  [96] "Bladen"       "Pender"       "Columbus"     "New Hanover"  "Brunswick"
+
+stamp_county_wake <- function(...){stamp_county(keep_id = "Wake", ...)}
+```
 
 # Part II. Packaging and documentation 🚧 ✅
 
