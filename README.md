@@ -412,7 +412,29 @@ last_plot() +
 ## Stamps for each polygon?
 
 ``` r
-nc_geo_reference$county_name
+#' Title
+#'
+#' @param ... 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+stamp_county_wake <- function(...){stamp_county(keep_id = 'Wake', ...)}
+
+#' Title
+#'
+#' @param ... 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+stamp_county_label_wake <- function(...){stamp_county_label(keep_id = 'Wake', ...)}
+```
+
+``` r
+nc_geo_reference$county_name 
 #>   [1] "Ashe"         "Alleghany"    "Surry"        "Currituck"    "Northampton" 
 #>   [6] "Hertford"     "Camden"       "Gates"        "Warren"       "Stokes"      
 #>  [11] "Caswell"      "Rockingham"   "Granville"    "Person"       "Vance"       
@@ -434,7 +456,15 @@ nc_geo_reference$county_name
 #>  [91] "Craven"       "Scotland"     "Onslow"       "Robeson"      "Carteret"    
 #>  [96] "Bladen"       "Pender"       "Columbus"     "New Hanover"  "Brunswick"
 
-stamp_county_wake <- function(...){stamp_county(keep_id = "Wake", ...)}
+
+readme2pkg::chunk_variants_to_dir("stamp_county_wake", 
+                              replace1 = "wake",
+                              replacements1 =
+                                str_replace(
+                                  tolower(nc_geo_reference$county_name), 
+                                  " ", "_"),
+                              replace2 = "Wake", 
+                              replacements2 = nc_geo_reference$county_name)
 ```
 
 # Part II. Packaging and documentation 🚧 ✅
@@ -596,7 +626,4 @@ all[11:17]
 
 ``` r
 devtools::check(pkg = ".")
-#> ℹ Updating sf2stat documentation
-#> ℹ Loading sf2stat
-#> Error: R CMD check found WARNINGs
 ```

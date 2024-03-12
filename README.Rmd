@@ -346,15 +346,44 @@ last_plot() +
 
 ## Stamps for each polygon?
 
-```{r}
-nc_geo_reference$county_name
+```{r stamp_county_wake}
+#' Title
+#'
+#' @param ... 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+stamp_county_wake <- function(...){stamp_county(keep_id = 'Wake', ...)}
 
-stamp_county_wake <- function(...){stamp_county(keep_id = "Wake", ...)}
-
+#' Title
+#'
+#' @param ... 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+stamp_county_label_wake <- function(...){stamp_county_label(keep_id = 'Wake', ...)}
 
 ```
 
 
+
+```{r}
+nc_geo_reference$county_name 
+
+
+readme2pkg::chunk_variants_to_dir("stamp_county_wake", 
+                              replace1 = "wake",
+                              replacements1 =
+                                str_replace(
+                                  tolower(nc_geo_reference$county_name), 
+                                  " ", "_"),
+                              replace2 = "Wake", 
+                              replacements2 = nc_geo_reference$county_name)
+```
 
 
 
@@ -518,7 +547,7 @@ all[11:17]
 
 ## `devtools::check()` report
 
-```{r, error = T, results="hide", warning=F}
+```{r, error = T, results="hide", warning=F, eval=F}
 devtools::check(pkg = ".")
 ```
 
