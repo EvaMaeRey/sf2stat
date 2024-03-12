@@ -371,7 +371,7 @@ stamp_county_label_wake <- function(...){stamp_county_label(keep_id = 'Wake', ..
 
 
 
-```{r}
+```{r eval=F}
 nc_geo_reference$county_name 
 
 

@@ -435,26 +435,6 @@ stamp_county_label_wake <- function(...){stamp_county_label(keep_id = 'Wake', ..
 
 ``` r
 nc_geo_reference$county_name 
-#>   [1] "Ashe"         "Alleghany"    "Surry"        "Currituck"    "Northampton" 
-#>   [6] "Hertford"     "Camden"       "Gates"        "Warren"       "Stokes"      
-#>  [11] "Caswell"      "Rockingham"   "Granville"    "Person"       "Vance"       
-#>  [16] "Halifax"      "Pasquotank"   "Wilkes"       "Watauga"      "Perquimans"  
-#>  [21] "Chowan"       "Avery"        "Yadkin"       "Franklin"     "Forsyth"     
-#>  [26] "Guilford"     "Alamance"     "Bertie"       "Orange"       "Durham"      
-#>  [31] "Nash"         "Mitchell"     "Edgecombe"    "Caldwell"     "Yancey"      
-#>  [36] "Martin"       "Wake"         "Madison"      "Iredell"      "Davie"       
-#>  [41] "Alexander"    "Davidson"     "Burke"        "Washington"   "Tyrrell"     
-#>  [46] "McDowell"     "Randolph"     "Chatham"      "Wilson"       "Rowan"       
-#>  [51] "Pitt"         "Catawba"      "Buncombe"     "Johnston"     "Haywood"     
-#>  [56] "Dare"         "Beaufort"     "Swain"        "Greene"       "Lee"         
-#>  [61] "Rutherford"   "Wayne"        "Harnett"      "Cleveland"    "Lincoln"     
-#>  [66] "Jackson"      "Moore"        "Mecklenburg"  "Cabarrus"     "Montgomery"  
-#>  [71] "Stanly"       "Henderson"    "Graham"       "Lenoir"       "Transylvania"
-#>  [76] "Gaston"       "Polk"         "Macon"        "Sampson"      "Pamlico"     
-#>  [81] "Cherokee"     "Cumberland"   "Jones"        "Union"        "Anson"       
-#>  [86] "Hoke"         "Hyde"         "Duplin"       "Richmond"     "Clay"        
-#>  [91] "Craven"       "Scotland"     "Onslow"       "Robeson"      "Carteret"    
-#>  [96] "Bladen"       "Pender"       "Columbus"     "New Hanover"  "Brunswick"
 
 
 readme2pkg::chunk_variants_to_dir("stamp_county_wake", 
