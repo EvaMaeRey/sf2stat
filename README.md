@@ -7,7 +7,7 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 
 # Part 0. Proposal
 
-Proposing the {sf2stat} package\! 🦄
+Proposing the {sf2stat} package! 🦄
 <!-- (typical package introduction write up; but actually aspirational) -->
 
 The goal of {sf2stat} is to make it easier to prep *sf data* for use in
@@ -24,12 +24,10 @@ where the task is a snap 🫰:
 
 Proposed API:
 
-``` 
 
-library(sf2stat)
+    library(sf2stat)
 
-my_geom_ref_data <- sf_df_prep_for_stat(data, id_col_name = county_name)
-```
+    my_geom_ref_data <- sf_df_prep_for_stat(data, id_col_name = county_name)
 
 # Package build Part I. Work out functionality ✅
 
@@ -38,624 +36,260 @@ functions work.
 
 ## Select toy sf data
 
-``` r
-nc <- sf::st_read(system.file("shape/nc.shp", package="sf")) %>%
-  select(NAME, FIPS)
-#> Reading layer `nc' from data source 
-#>   `/Library/Frameworks/R.framework/Versions/4.2/Resources/library/sf/shape/nc.shp' 
-#>   using driver `ESRI Shapefile'
-#> Simple feature collection with 100 features and 14 fields
-#> Geometry type: MULTIPOLYGON
-#> Dimension:     XY
-#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
-#> Geodetic CRS:  NAD27
-
-nc
-#> Simple feature collection with 100 features and 2 fields
-#> Geometry type: MULTIPOLYGON
-#> Dimension:     XY
-#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
-#> Geodetic CRS:  NAD27
-#> First 10 features:
-#>           NAME  FIPS                       geometry
-#> 1         Ashe 37009 MULTIPOLYGON (((-81.47276 3...
-#> 2    Alleghany 37005 MULTIPOLYGON (((-81.23989 3...
-#> 3        Surry 37171 MULTIPOLYGON (((-80.45634 3...
-#> 4    Currituck 37053 MULTIPOLYGON (((-76.00897 3...
-#> 5  Northampton 37131 MULTIPOLYGON (((-77.21767 3...
-#> 6     Hertford 37091 MULTIPOLYGON (((-76.74506 3...
-#> 7       Camden 37029 MULTIPOLYGON (((-76.00897 3...
-#> 8        Gates 37073 MULTIPOLYGON (((-76.56251 3...
-#> 9       Warren 37185 MULTIPOLYGON (((-78.30876 3...
-#> 10      Stokes 37169 MULTIPOLYGON (((-80.02567 3...
-```
-
 ## `sf_df_add_xy_center_coords()`
 
 First we have a function that takes an sf data frame and adds columns x
 and y for the centroids of the geometries.
 
 ``` r
-sf_df_add_xy_center_coords <- function(sf_df){
+library(tidyverse)
 
-sf_df |>
-    dplyr::pull(geometry) |>
-    sf::st_zm() |>
-    sf::st_point_on_surface() ->
-  points_sf
-
-the_coords <- do.call(rbind, sf::st_geometry(points_sf)) |>
-  tibble::as_tibble() |> setNames(c("x","y"))
-
-cbind(sf_df, the_coords)
-
+# proposed functions for sf2stat
+qstat <- function(compute_group = Stat$compute_group, ...){
+  
+  ggproto("StatTemp", Stat, compute_group = compute_group, ...)
+  
 }
-```
 
-``` r
-nc |> sf_df_add_xy_center_coords()
-#> Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(sf_df, geometry))):
-#> st_point_on_surface may not give correct results for longitude/latitude data
-#> Warning: The `x` argument of `as_tibble.matrix()` must have unique column names if
-#> `.name_repair` is omitted as of tibble 2.0.0.
-#> ℹ Using compatibility `.name_repair`.
-#> This warning is displayed once every 8 hours.
-#> Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-#> generated.
-#> Simple feature collection with 100 features and 4 fields
-#> Geometry type: MULTIPOLYGON
-#> Dimension:     XY
-#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
-#> Geodetic CRS:  NAD27
-#> First 10 features:
-#>           NAME  FIPS         x        y                       geometry
-#> 1         Ashe 37009 -81.49496 36.42112 MULTIPOLYGON (((-81.47276 3...
-#> 2    Alleghany 37005 -81.13241 36.47396 MULTIPOLYGON (((-81.23989 3...
-#> 3        Surry 37171 -80.69280 36.38828 MULTIPOLYGON (((-80.45634 3...
-#> 4    Currituck 37053 -75.93852 36.30697 MULTIPOLYGON (((-76.00897 3...
-#> 5  Northampton 37131 -77.36988 36.35211 MULTIPOLYGON (((-77.21767 3...
-#> 6     Hertford 37091 -77.04217 36.39709 MULTIPOLYGON (((-76.74506 3...
-#> 7       Camden 37029 -76.18290 36.36249 MULTIPOLYGON (((-76.00897 3...
-#> 8        Gates 37073 -76.72199 36.43576 MULTIPOLYGON (((-76.56251 3...
-#> 9       Warren 37185 -78.11342 36.42681 MULTIPOLYGON (((-78.30876 3...
-#> 10      Stokes 37169 -80.23459 36.40106 MULTIPOLYGON (((-80.02567 3...
-```
 
-## `sf_df_return_bbox_df()`
-
-Second we have a function that’s going to return bounding boxes as a
-dataframe. For our reference data we need these xmin, xmax variables for
-each row in our data.
-
-``` r
-sf_df_return_bbox_df <- function(sf_df){
-  
-  bb <- sf::st_bbox(sf_df)
-
-  data.frame(xmin = bb[1], ymin = bb[2],
-             xmax = bb[3], ymax = bb[4])
-
+qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
+    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, ...) {
+    c(layer_sf(geom = geom, data = data, mapping = mapping, 
+        stat = stat, position = position, show.legend = show.legend, 
+        inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
+            ...)), coord_sf(default = TRUE))
 }
-```
 
-``` r
-nc[10,] |> sf_df_return_bbox_df()
-#>           xmin     ymin      xmax     ymax
-#> xmin -80.45301 36.25023 -80.02406 36.55104
-```
-
-## `sf_df_prep_for_stat()`
-
-Finally we bundle this into the user-facing function that will take an
-sf dataframe and add required columns for display in ggplot2 sf layer.
-
-``` r
-sf_df_prep_for_stat <- function(sf_df, id_col_name = NULL){
+prep_geo_reference <- function(ref_data){
   
-  sf_df |>
-    # using purrr allows us to get bb for each row
-    dplyr::mutate(bb =
-                    purrr::map(geometry,
-                               sf_df_return_bbox_df)) |>
-    tidyr::unnest(bb) |>
-    data.frame() |>
-    sf_df_add_xy_center_coords() ->
-  sf_df_w_bb_and_centers
-
-  # use first column as keep/drop column unless otherwise specified
-  if(is.null(id_col_name)){id_col_name <- 1} 
+  ref_data |>
+  ggplot2::StatSf$compute_panel(coord = ggplot2::CoordSf) |>
+  ggplot2::StatSfCoordinates$compute_group(coord = ggplot2::CoordSf) %>% 
+    mutate(id_col = .[[1]])
   
-  sf_df_w_bb_and_centers$id_col <- sf_df_w_bb_and_centers[,id_col_name]
+}
 
-  return(sf_df_w_bb_and_centers)
-  
-  }
-```
 
------
-
-## Fully worked example: How you’d use sf2stat to build location-specific functionality
-
-Let’s see how we might recreate the functionality in the ggnorthcarolina
-package
-
-### Step 00. prep reference data
-
-``` r
-usethis::use_data_raw()
-```
-
-## 
-
-``` r
+# given some data with geometry shape column
 nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
 #> Reading layer `nc' from data source 
-#>   `/Library/Frameworks/R.framework/Versions/4.2/Resources/library/sf/shape/nc.shp' 
+#>   `/Library/Frameworks/R.framework/Versions/4.4-x86_64/Resources/library/sf/shape/nc.shp' 
 #>   using driver `ESRI Shapefile'
 #> Simple feature collection with 100 features and 14 fields
 #> Geometry type: MULTIPOLYGON
 #> Dimension:     XY
 #> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
 #> Geodetic CRS:  NAD27
-
-nc |>
-  dplyr::select(county_name = NAME, fips = FIPS) |>
-  sf_df_prep_for_stat(id_col_name = "county_name") ->
-geo_reference_northcarolina_county
-#> Warning in st_point_on_surface.sfc(sf::st_zm(dplyr::pull(sf_df, geometry))):
-#> st_point_on_surface may not give correct results for longitude/latitude data
 ```
 
 ``` r
-usethis::use_data(geo_reference_northcarolina_county)
+
+# select relevant id columns (this will keep geometry column)
+nc_ref <- nc |>
+  select(county_name = NAME, fips = FIPS)
+
+# just a demo of whate prep_geo_reference does - don't need to have as part of 
+nc_ref |>
+  prep_geo_reference()
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Simple feature collection with 100 features and 9 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
+#> Geodetic CRS:  NAD27
+#> First 10 features:
+#>    county_name  fips                       geometry      xmin      xmax
+#> 1         Ashe 37009 MULTIPOLYGON (((-81.47276 3... -84.32385 -75.45698
+#> 2    Alleghany 37005 MULTIPOLYGON (((-81.23989 3... -84.32385 -75.45698
+#> 3        Surry 37171 MULTIPOLYGON (((-80.45634 3... -84.32385 -75.45698
+#> 4    Currituck 37053 MULTIPOLYGON (((-76.00897 3... -84.32385 -75.45698
+#> 5  Northampton 37131 MULTIPOLYGON (((-77.21767 3... -84.32385 -75.45698
+#> 6     Hertford 37091 MULTIPOLYGON (((-76.74506 3... -84.32385 -75.45698
+#> 7       Camden 37029 MULTIPOLYGON (((-76.00897 3... -84.32385 -75.45698
+#> 8        Gates 37073 MULTIPOLYGON (((-76.56251 3... -84.32385 -75.45698
+#> 9       Warren 37185 MULTIPOLYGON (((-78.30876 3... -84.32385 -75.45698
+#> 10      Stokes 37169 MULTIPOLYGON (((-80.02567 3... -84.32385 -75.45698
+#>        ymin     ymax         x        y      id_col
+#> 1  33.88199 36.58965 -81.49496 36.42112        Ashe
+#> 2  33.88199 36.58965 -81.13241 36.47396   Alleghany
+#> 3  33.88199 36.58965 -80.69280 36.38828       Surry
+#> 4  33.88199 36.58965 -75.93852 36.30697   Currituck
+#> 5  33.88199 36.58965 -77.36988 36.35211 Northampton
+#> 6  33.88199 36.58965 -77.04217 36.39709    Hertford
+#> 7  33.88199 36.58965 -76.18290 36.36249      Camden
+#> 8  33.88199 36.58965 -76.72199 36.43576       Gates
+#> 9  33.88199 36.58965 -78.11342 36.42681      Warren
+#> 10 33.88199 36.58965 -80.23459 36.40106      Stokes
 ```
 
 ``` r
-compute_panel_scope_region <- function(data, scales, keep_id = NULL, drop_id = NULL, stamp = FALSE){
+
+# Flip the script... prepare compute (join) to happen in layer (NEW!)
+compute_panel_region <- function(data, scales, ref_data){
   
-  if(!stamp){data <- dplyr::inner_join(data, geo_reference_scope_region)}
-  if( stamp){data <- geo_reference_scope_region }
+  ref_data %>% 
+    prep_geo_reference() %>% 
+    inner_join(data)
   
-  if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
-  if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
-  
-  data
   
 }
 
-# step 2
-StatSfscoperegion <- ggplot2::ggproto(`_class` = "StatSfscoperegion",
-                                `_inherit` = ggplot2::Stat,
-                                # required_aes = c("fips|county_name"),
-                                compute_panel = compute_panel_scope_region,
-                               default_aes = ggplot2::aes(label = after_stat(id_col)))
 
-
-stat_region <- function(
-      mapping = NULL,
-      data = NULL,
-      geom = ggplot2::GeomSf,
-      position = "identity",
-      na.rm = FALSE,
-      show.legend = NA,
-      inherit.aes = TRUE,
-      crs = "NAD27", # "NAD27", 5070, "WGS84", "NAD83", 4326 , 3857
-      ...) {
-
-  c(ggplot2::layer_sf(
-              stat = StatSfscoperegion,  # proto object from step 2
-              geom = geom,  # inherit other behavior
-              data = data,
-              mapping = mapping,
-              position = position,
-              show.legend = show.legend,
-              inherit.aes = inherit.aes,
-              params = rlang::list2(na.rm = na.rm, ...)
-              ),
-              
-              coord_sf(crs = crs,
-                       default_crs = sf::st_crs(crs),
-                       datum = crs,
-                       default = TRUE)
-     )
+stat_county <- function(geom = GeomSf, ...){
+  
+   StatTemp <- ggproto("StatTemp", Stat, 
+                       compute_panel = compute_panel_region,
+                       default_aes = aes(label = after_stat(id_col)))
+  
+  qlayer_sf(stat = StatTemp, 
+         geom = geom,
+         ref_data = nc_ref, ...)
+  
   }
-```
 
-``` r
-readme2pkg::chunk_variants_to_dir(chunk_name = "stat_region_template",
-                                  file_name = "stat_county",
-                                  replace1 = "scope",
-                                  replacements1 = "northcarolina",
-                                  replace2 = "region",
-                                  replacements2 = "county")
-```
 
-# test it out
+geom_county <- stat_county
+geom_county_text <- function(...){stat_county(geom = GeomText, ...)}
+geom_county_label <- function(...){stat_county(geom = GeomLabel, ...)}
 
-``` r
-source("./R/stat_county")
 
-library(ggplot2)
-nc |>
-  sf::st_drop_geometry() |>
-  ggplot() +
-  aes(fips = FIPS) +
-  stat_county() + 
-  aes(fill = BIR79)
-#> Joining with `by = join_by(fips)`
-```
-
-![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
-
-### Make derivitive functions, aliases
-
-``` r
-geom_region <- stat_region
-geom_region_label <- function(...){stat_region(geom = "text",...)}
-stamp_region <- function(...){
-  stat_region(stamp = T, 
-              data = mtcars,
-              aes(fill = NULL, color = NULL, label = NULL, 
-                  fips = NULL, region_name = NULL), 
-              ...)}
-stamp_region_label <- function(...){
-  stat_region(stamp = T, 
-              geom = "text", 
-              data = mtcars, 
-              aes(fill = NULL, color = NULL,
-                  fips = NULL, region_name = NULL), 
-              ...)}
-```
-
-``` r
-readme2pkg::chunk_variants_to_dir(chunk_name = "geom_region_template",
-                                  file_name = "geom_county",
-                                  replace1 = "region",
-                                  replacements1 = "county")
-```
-
-# try those out
-
-``` r
-source("./R/geom_county")
-
-nc |>
-  sf::st_drop_geometry() |>
-  ggplot() +
-  aes(fips = FIPS) +
+# library(ggnc)
+nc |>  # use emily's data here for demo! 
+  ggplot() + 
+  aes(fips = FIPS) + # non-native positional mapping...
   geom_county() + 
-  geom_county_label(check_overlap = T,
-                    color = "grey85") +
-  aes(fill = BIR79) 
-#> Joining with `by = join_by(fips)`
-#> Joining with `by = join_by(fips)`
+  aes(fill = BIR74) + # use emily's variable of interest...
+  geom_county_text(color = "white", 
+                      check_overlap = TRUE)
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
 ```
 
-![](man/figures/README-unnamed-chunk-10-1.png)<!-- -->
+![](man/figures/README-sf_df_add_xy_center_coords-1.png)<!-- -->
 
 ``` r
 
-last_plot() + 
-  stamp_county() + 
-  stamp_county_label()
-#> Joining with `by = join_by(fips)`
-#> Joining with `by = join_by(fips)`
-```
 
-![](man/figures/README-unnamed-chunk-10-2.png)<!-- -->
-
-``` r
-
-ggplot() + 
-  stamp_county()
-```
-
-![](man/figures/README-unnamed-chunk-10-3.png)<!-- -->
-
-``` r
-
-last_plot() + 
-  stamp_county_label(check_overlap = T)
-```
-
-![](man/figures/README-unnamed-chunk-10-4.png)<!-- -->
-
-``` r
-
-last_plot() + 
-  stamp_county(keep_id = "Wake", fill = "darkred")
-```
-
-![](man/figures/README-unnamed-chunk-10-5.png)<!-- -->
-
-# Wanting even more?
-
-## Stamps for each polygon?
-
-``` r
-#' Title
-#'
-#' @param ... 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-stamp_region_location <- function(...){stamp_region(keep_id = 'Location', ...)}
-
-#' Title
-#'
-#' @param ... 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-stamp_region_label_location <- function(...){stamp_region_label(keep_id = 'Location', ...)}
+layer_data() %>% head()
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
+#>      fill       label county_name  fips      xmin      xmax     ymin     ymax
+#> 1 #153049        Ashe        Ashe 37009 -84.32385 -75.45698 33.88199 36.58965
+#> 2 #142C45   Alleghany   Alleghany 37005 -84.32385 -75.45698 33.88199 36.58965
+#> 3 #1B3B59       Surry       Surry 37171 -84.32385 -75.45698 33.88199 36.58965
+#> 4 #142C45   Currituck   Currituck 37053 -84.32385 -75.45698 33.88199 36.58965
+#> 5 #16314C Northampton Northampton 37131 -84.32385 -75.45698 33.88199 36.58965
+#> 6 #16324C    Hertford    Hertford 37091 -84.32385 -75.45698 33.88199 36.58965
+#>           x        y      id_col PANEL group                       geometry
+#> 1 -81.49496 36.42112        Ashe     1     5 MULTIPOLYGON (((-81.47276 3...
+#> 2 -81.13241 36.47396   Alleghany     1     3 MULTIPOLYGON (((-81.23989 3...
+#> 3 -80.69280 36.38828       Surry     1    86 MULTIPOLYGON (((-80.45634 3...
+#> 4 -75.93852 36.30697   Currituck     1    27 MULTIPOLYGON (((-76.00897 3...
+#> 5 -77.36988 36.35211 Northampton     1    66 MULTIPOLYGON (((-77.21767 3...
+#> 6 -77.04217 36.39709    Hertford     1    46 MULTIPOLYGON (((-76.74506 3...
+#>   linetype alpha stroke
+#> 1        1    NA    0.5
+#> 2        1    NA    0.5
+#> 3        1    NA    0.5
+#> 4        1    NA    0.5
+#> 5        1    NA    0.5
+#> 6        1    NA    0.5
 ```
 
 ``` r
-ids <- geo_reference_northcarolina_county$county_name
-ids_snake <- tolower(geo_reference_northcarolina_county$county_name) |> 
-  stringr::str_replace_all(" ", "_")
 
-
-readme2pkg::chunk_variants_to_dir(chunk_name = "stamp_region_location", 
-                                  file_name = "stamp_county_locations.R",
-                                  replace1 = "region",
-                                  replacements1 = rep("county", length(ids)),
-                              replace2 = "location",
-                              replacements2 = ids_snake,
-                              replace3 = "Location", 
-                              replacements3 = ids)
+geom_nc_county2 <- function(...){
+  geom_sf(stat = qstat(compute_panel_region),  # w compute group
+          ref_data = nc_ref, ...)
+  }
+  
+# last_plot() + 
+#   geom_nc_county2()
 ```
 
-``` r
-source("./R/stamp_county_locations.R")
+# wrapping up more
 
+``` r
+stat_region <- function(ref_data, geom = GeomSf, ...){
+  
+  StatTemp <- ggproto("StatTemp", Stat, 
+                      compute_panel = compute_panel_region, 
+                      default_aes = aes(label = after_stat(id_col)))
+  
+  qlayer_sf(stat = StatTemp, geom = geom,
+            ref_data = ref_data, ...)
+  
+}
+
+
+
+stat_county <- function(...){stat_region(ref_data = nc_ref, ...)}  # uses GeomSf
+geom_county_sf <- function(...){stat_region(ref_data = nc_ref, geom = GeomSf,...)}
+geom_county <- geom_county_sf   # convenience name
+geom_county_label <- function(...){stat_region(ref_data = nc_ref, geom = GeomLabel,...)}
+geom_county_text <- function(...){stat_region(ref_data = nc_ref, geom = GeomText, ...)}
 
 nc |>
-  sf::st_drop_geometry() |>
-  ggplot() +
+  ggplot() + 
   aes(fips = FIPS) + 
-  stamp_county() + 
-  stamp_county_ashe(fill = "darkred")
+  geom_county() + 
+  geom_county_text(color = "white", check_overlap = T) + 
+  aes(fill = BIR74) 
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
 ```
 
-![](man/figures/README-unnamed-chunk-12-1.png)<!-- -->
-
-# Template functions. Some old ideas that we’re moving away from.
-
-These are more of an experiment. The code to write a layer is multistep
-and verbose, so maybe providing some templates is a good idea. But maybe
-this isn’t the right place or implementation.
-
-## `template_compute_panel_code()`
+![](man/figures/README-unnamed-chunk-3-1.png)<!-- -->
 
 ``` r
-template_compute_panel_code <- function(){
-  
-"compute_panel_geo_XXXX <- function(data, scales, keep_id = NULL, drop_id = NULL){
-  
-  if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
-  if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
-  
-  if(!stamp){data <- dplyr::inner_join(data, geo_ref_XXXX)}
-  if( stamp){data <- geo_ref_XXXX }
-  
-  data
-  
-}" |> cat()
-  
-}
+
+last_plot() + 
+  stat_county(color = "red", geom = "point")
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
 ```
 
-## `template_stat_code()`
+![](man/figures/README-unnamed-chunk-3-2.png)<!-- -->
 
 ``` r
-template_stat_code <- function(){
-  
-'StatXXXXsf <- ggplot2::ggproto(`_class` = "StatXXXXsf",
-                                `_inherit` = ggplot2::Stat,
-                                required_aes = c("fips|county_name|XXXX"),
-                                compute_panel = compute_panel_geo_XXXX,
-                               default_aes = c(label = ggplot2::after_stat(id_col)))' |> cat()
-}
-```
-
-## `template_layer_code()`
-
-``` r
-template_layer_code <- function(){ 'stat_XXXX <- function(
-      mapping = NULL,
-      data = NULL,
-      geom = ggplot2::GeomSf,
-      position = "identity",
-      na.rm = FALSE,
-      show.legend = NA,
-      inherit.aes = TRUE,
-      crs = "NAD27", # "NAD27", 5070, "WGS84", "NAD83", 4326 , 3857
-      ...) {
-
-  c(ggplot2::layer_sf(
-              stat = StatXXXX,  # proto object from step 2
-              geom = geom,  # inherit other behavior
-              data = data,
-              mapping = mapping,
-              position = position,
-              show.legend = show.legend,
-              inherit.aes = inherit.aes,
-              params = rlang::list2(na.rm = na.rm, ...)
-              ),
-              
-              coord_sf(crs = crs,
-                       default_crs = sf::st_crs(crs),
-                       datum = crs,
-                       default = TRUE)
-     )
-  }' |> cat()
-
-}
-  
-```
-
-# Part II. Packaging and documentation 🚧 ✅
-
-## Phase 1. Minimal working package
-
-### Bit A. Created package archetecture, running `devtools::create(".")` in interactive session. 🚧 ✅
-
-``` r
-devtools::create(".")
-```
-
-### Bit B. Added roxygen skeleton? 🚧 ✅
-
-Use a roxygen skeleton for auto documentation and making sure proposed
-functions are *exported*. Generally, early on, I don’t do much
-(anything) in terms of filling in the skeleton for documentation,
-because things may change.
-
-### Bit C. Managed dependencies ? 🚧 ✅
-
-Package dependencies managed, i.e. `depend::function()` in proposed
-functions and declared in the DESCRIPTION
-
-``` r
-usethis::use_package("sf")
-usethis::use_package("dplyr")
-usethis::use_package("tibble")
-usethis::use_package("tidyr")
-usethis::use_package("purrr")
-```
-
-### Bit D. Moved functions R folder? 🚧 ✅
-
-Use new {readme2pkg} function to do this from readme…
-
-``` r
-readme2pkg::chunk_to_r("sf_df_return_bbox_df")
-readme2pkg::chunk_to_r("sf_df_add_xy_center_coords")
-readme2pkg::chunk_to_r("sf_df_prep_for_stat")
-readme2pkg::chunk_to_r("template_compute_panel_code")
-readme2pkg::chunk_to_r("template_stat_code")
-readme2pkg::chunk_to_r("template_layer_code")
-```
-
-### Bit E. Run `devtools::check()` and addressed errors. 🚧 ✅
-
-``` r
-devtools::check(pkg = ".")
-```
-
-### Bit F. [Install](https://r-pkgs.org/whole-game.html#install) and restart package 🚧 ✅
-
-``` r
-devtools::build()
-```
-
-### Bit G. Write traditional README that uses built package (also serves as a test of build. 🚧 ✅
-
-The goal of the {xxxx} package is to …
-
-Install package with:
-
-    remotes::installgithub("EvaMaeRey/readme2pkg.template")
-
-Once functions are exported you can remove go to two colons, and when
-things are are really finalized, then go without colons (and rearrange
-your readme…)
-
-``` r
-library(sf2stat)  ##<< change to your package name here
-
-nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
 
 nc |>
-  dplyr::select(county_name = NAME, fips = FIPS) |>
-  sf2stat::sf_df_prep_for_stat(id_col_name = "county_name") ->
-nc_geo_reference
+  ggplot() + 
+  aes(fips = FIPS) + 
+  geom_county() + 
+  geom_county_text(check_overlap = T, 
+                   aes(color = BIR74)) + 
+  scale_color_viridis_c()
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
+#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
+#> give correct results for longitude/latitude data
+#> Joining with `by = join_by(fips, geometry)`
 ```
 
-### Bit H. Chosen a [license](https://r-pkgs.org/license.html)? 🚧 ✅
+![](man/figures/README-unnamed-chunk-3-3.png)<!-- -->
 
 ``` r
-usethis::use_mit_license()
-```
-
-### Bit I. Add [lifecycle badge](https://r-pkgs.org/lifecycle.html) (experimental)
-
-``` r
-usethis::use_lifecycle_badge("experimental")
-```
-
-## Phase 2: Listen & iterate 🚧 ✅
-
-Try to get feedback from experts on API, implementation, default
-decisions. Is there already work that solves this problem?
-
-## Phase 3: Let things settle
-
-### Bit A. Settle on [examples](https://r-pkgs.org/man.html#sec-man-examples). Put them in the roxygen skeleton and readme. 🚧 ✅
-
-### Bit B. Written formal [tests](https://r-pkgs.org/testing-basics.html) of functions and save to test that folders 🚧 ✅
-
-That would look like this…
-
-``` r
-library(testthat)
-
-test_that("calc times 2 works", {
-  expect_equal(times_two(4), 8)
-  expect_equal(times_two(5), 10)
-  
-})
-```
-
-``` r
-readme2pkg::chunk_to_tests_testthat("test_calc_times_two_works")
-```
-
-### Bit C. Added a description and author information in the DESCRIPTION file 🚧 ✅
-
-### Bit D. Addressed *all* notes, warnings and errors. 🚧 ✅
-
-## Phase 4. Promote to wider audience…
-
-### Bit A. Package website built? 🚧 ✅
-
-### Bit B. Package website deployed? 🚧 ✅
-
-## Phase 5: Harden/commit
-
-### Submit to CRAN/RUniverse? 🚧 ✅
-
-# Appendix: Reports, Environment
-
-## Edit Description file
-
-``` r
-readLines("DESCRIPTION")
-```
-
-## Environment
-
-Here I just want to print the packages and the versions
-
-``` r
-all <- sessionInfo() |> print() |> capture.output()
-all[11:17]
-#> [1] ""                                                                         
-#> [2] "attached base packages:"                                                  
-#> [3] "[1] stats     graphics  grDevices utils     datasets  methods   base     "
-#> [4] ""                                                                         
-#> [5] "other attached packages:"                                                 
-#> [6] " [1] lubridate_1.9.2      forcats_1.0.0        stringr_1.5.0       "      
-#> [7] " [4] dplyr_1.1.0          purrr_1.0.1          readr_2.1.4         "
-```
-
-## `devtools::check()` report
-
-``` r
-devtools::check(pkg = ".")
+knitr::knit_exit()
 ```

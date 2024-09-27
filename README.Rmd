@@ -17,6 +17,7 @@ knitr::opts_chunk$set(
 )
 
 library(tidyverse)
+
 ```
 
 
@@ -51,10 +52,9 @@ In this section we'll use the nc sf dataframe to check out how our functions wor
 ## Select toy sf data
 
 ```{r}
-nc <- sf::st_read(system.file("shape/nc.shp", package="sf")) %>%
-  select(NAME, FIPS)
 
-nc
+
+
 ```
 
 
@@ -63,6 +63,154 @@ nc
 First we have a function that takes an sf data frame and adds columns x and y for the centroids of the geometries.
 
 ```{r sf_df_add_xy_center_coords}
+library(tidyverse)
+
+# proposed functions for sf2stat
+qstat <- function(compute_group = Stat$compute_group, ...){
+  
+  ggproto("StatTemp", Stat, compute_group = compute_group, ...)
+  
+}
+
+
+qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
+    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, ...) {
+    c(layer_sf(geom = geom, data = data, mapping = mapping, 
+        stat = stat, position = position, show.legend = show.legend, 
+        inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
+            ...)), coord_sf(default = TRUE))
+}
+
+prep_geo_reference <- function(ref_data){
+  
+  ref_data |>
+  ggplot2::StatSf$compute_panel(coord = ggplot2::CoordSf) |>
+  ggplot2::StatSfCoordinates$compute_group(coord = ggplot2::CoordSf) %>% 
+    mutate(id_col = .[[1]])
+  
+}
+
+
+# given some data with geometry shape column
+nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
+
+# select relevant id columns (this will keep geometry column)
+nc_ref <- nc |>
+  select(county_name = NAME, fips = FIPS)
+
+# just a demo of whate prep_geo_reference does - don't need to have as part of 
+nc_ref |>
+  prep_geo_reference()
+
+# Flip the script... prepare compute (join) to happen in layer (NEW!)
+compute_panel_region <- function(data, scales, ref_data){
+  
+  ref_data %>% 
+    prep_geo_reference() %>% 
+    inner_join(data)
+  
+  
+}
+
+
+stat_county <- function(geom = GeomSf, ...){
+  
+   StatTemp <- ggproto("StatTemp", Stat, 
+                       compute_panel = compute_panel_region,
+                       default_aes = aes(label = after_stat(id_col)))
+  
+  qlayer_sf(stat = StatTemp, 
+         geom = geom,
+         ref_data = nc_ref, ...)
+  
+  }
+
+
+geom_county <- stat_county
+geom_county_text <- function(...){stat_county(geom = GeomText, ...)}
+geom_county_label <- function(...){stat_county(geom = GeomLabel, ...)}
+
+
+# library(ggnc)
+nc |>  # use emily's data here for demo! 
+  ggplot() + 
+  aes(fips = FIPS) + # non-native positional mapping...
+  geom_county() + 
+  aes(fill = BIR74) + # use emily's variable of interest...
+  geom_county_text(color = "white", 
+                      check_overlap = TRUE)
+
+
+layer_data() %>% head()
+
+geom_nc_county2 <- function(...){
+  geom_sf(stat = qstat(compute_panel_region),  # w compute group
+          ref_data = nc_ref, ...)
+  }
+  
+# last_plot() + 
+#   geom_nc_county2()
+```
+
+
+
+# wrapping up more
+
+```{r}
+stat_region <- function(ref_data, geom = GeomSf, ...){
+  
+  StatTemp <- ggproto("StatTemp", Stat, 
+                      compute_panel = compute_panel_region, 
+                      default_aes = aes(label = after_stat(id_col)))
+  
+  qlayer_sf(stat = StatTemp, geom = geom,
+            ref_data = ref_data, ...)
+  
+}
+
+
+
+stat_county <- function(...){stat_region(ref_data = nc_ref, ...)}  # uses GeomSf
+geom_county_sf <- function(...){stat_region(ref_data = nc_ref, geom = GeomSf,...)}
+geom_county <- geom_county_sf   # convenience name
+geom_county_label <- function(...){stat_region(ref_data = nc_ref, geom = GeomLabel,...)}
+geom_county_text <- function(...){stat_region(ref_data = nc_ref, geom = GeomText, ...)}
+
+nc |>
+  ggplot() + 
+  aes(fips = FIPS) + 
+  geom_county() + 
+  geom_county_text(color = "white", check_overlap = T) + 
+  aes(fill = BIR74) 
+
+last_plot() + 
+  stat_county(color = "red", geom = "point")
+
+nc |>
+  ggplot() + 
+  aes(fips = FIPS) + 
+  geom_county() + 
+  geom_county_text(check_overlap = T, 
+                   aes(color = BIR74)) + 
+  scale_color_viridis_c()
+```
+
+
+
+
+
+
+
+
+
+```{r}
+knitr::knit_exit()
+
+
+```
+
+
+```{r}
 sf_df_add_xy_center_coords <- function(sf_df){
 
 sf_df |>
@@ -158,7 +306,6 @@ usethis::use_data_raw()
 ```{r nc_geo_reference_prep, eval = T}
 nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
 
-
 geo_reference_northcarolina_county <- nc |>
   dplyr::select(county_name = NAME, fips = FIPS) |>
   sf_df_prep_for_stat(id_col_name = "county_name")
@@ -177,8 +324,8 @@ compute_panel_scope_region <- function(data, scales, keep_id = NULL, drop_id = N
   if(!stamp){data <- dplyr::inner_join(data, geo_reference_scope_region)}
   if( stamp){data <- geo_reference_scope_region }
   
-  if(!is.null(keep_id)){ data <- filter(data, id_col %in% keep_id) }
-  if(!is.null(drop_id)){ data <- filter(data, !(id_col %in% drop_id)) }
+  if(!is.null(keep_id)){ data <- dplyr::filter(data, id_col %in% keep_id) }
+  if(!is.null(drop_id)){ data <- dplyr::filter(data, !(id_col %in% drop_id)) }
   
   data
   
