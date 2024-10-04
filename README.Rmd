@@ -230,53 +230,128 @@ stat_region <- function(ref_data, geom = GeomSf, required_aes, id_index = 1, ...
 
 # sf2stat Proposed usage
 
+https://twitter.com/EmilyRiederer/status/1816820773581127781
 
 ```{r, fig.height=2}
+# given some flatfile data of interest
+read.csv("nc-midterms.csv") |> head()
+
+
+# and being aware of geographic data with geometry shape column
+nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
+
+# select relevant id columns (this will keep geometry column)
+nc_ref <- nc |>
+  select(county_name = NAME, fips = FIPS)
+
+
+
+# do this routine, change out the ref data, required_aes and 'county' in convenience funtion names.
 stat_county <- function(...){stat_region(ref_data = nc_ref, required_aes = "county_name|fips", id_index = 1, ...)}  # uses GeomSf as default
+
+GeomOutline <- ggproto("GeomOutline", GeomSf,
+                       default_aes = aes(!!!modifyList(GeomSf$default_aes,
+                                                       aes(fill = NA, 
+                                                           color = "black"))))
 
 geom_county_sf <- function(...){stat_county(geom = GeomSf,...)}
 geom_county <- geom_county_sf   # convenience short name
+geom_county_outline <- function(...){stat_county(geom = GeomOutline, ...)}
 geom_county_label <- function(...){stat_county(geom = GeomLabel,...)}
 geom_county_text <- function(...){stat_county(geom = GeomText, ...)}
 
 stamp_county_sf <- function(...){geom_county_sf(stamp = T, ...)}
 stamp_county <- stamp_county_sf
+stamp_county_outline <- function(...){geom_county_outline(stamp = T, ...)}
 stamp_county_label <- function(...){geom_county_label(stamp = T, ...)}
 stamp_county_text <- function(...){geom_county_text(stamp = T, ...)}
+```
 
+A first NC map shows when we map desc_county to county name. 
+
+
+```{r}
 read.csv("nc-midterms.csv") |>
   ggplot() + 
   aes(county_name = str_to_title(desc_county)) + 
   geom_county()
+```
 
+
+We see that there are actually undiscovered counties, as exact name matching can be a little dicy.  Using fips which would probably perform better, which is possible with any plot data with an input fips column (I decided to skip adding fips even though I had a cross-walk)
+
+We can do the following 'stamp' convenience layer to get the full map. I think of this as an annotation layer - it doesn't refer to global data, but 'brings its own data'. annotate_county is just too long.  
+
+
+
+```{r}
 read.csv("nc-midterms.csv") |>
   ggplot() + 
   aes(county_name = str_to_title(desc_county)) + 
   stamp_county(fill = 'darkgrey')
+```
 
+Then we use geom_county(), which reflects your data and the success of the underlying join process.  
+
+
+```{r}
 last_plot() + 
   geom_county()
+```
 
+Then look at population choropleth (fill = n) and highlight Mecklenburg with convenience annotation layer 'stamp_county'
+
+
+```{r}
 options(scipen = 10)
 last_plot() + 
   aes(fill = n/100000)
+```
 
+
+highlight at county of interest...
+
+```{r}
 last_plot() + 
-  aes(fill = n/100000) + 
-  stamp_county(fill = NA, keep_id = "Mecklenburg", color = "orange")
+  stamp_county_outline(keep_id = "Mecklenburg", 
+                       color = "orange",
+                       linewidth = 1)
+```
 
+We can add a text layer defaults to ref_data column 1 (id_index setting)...
+
+
+```{r}
 last_plot() +
-   geom_county_text(color = "white", check_overlap = T, size = 2)
+   geom_county_text(color = "white", 
+                    check_overlap = T, 
+                    size = 2)
+```
 
+We can look at another variable...
+
+
+```{r}
 last_plot() + 
    aes(fill = cd_party) 
+```
 
+And another...
+
+
+```{r}
 last_plot() +
   aes(fill = ind_vote)
 ```
 
 
+And look at some values for that variable
 
+```{r}
+last_plot() +
+  aes(label = round(ind_vote, 2))
+
+```
 
 
 
