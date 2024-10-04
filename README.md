@@ -250,7 +250,7 @@ qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf
 }
 
 
-stat_region <- function(ref_data, geom = GeomSf, required_aes, ...){
+stat_region <- function(ref_data, geom = GeomSf, required_aes, id_index = 1, ...){
   
   StatTemp <- ggproto("StatTemp", Stat, 
                       compute_panel = compute_panel_region, 
@@ -260,7 +260,8 @@ stat_region <- function(ref_data, geom = GeomSf, required_aes, ...){
   qlayer_sf_crs(stat = StatTemp, 
                 geom = geom,
                 ref_data = ref_data, 
-                crs = sf::st_crs(ref_data), ...)
+                crs = sf::st_crs(ref_data), 
+                id_index = id_index, ...)
   
 }
 ```
@@ -268,7 +269,7 @@ stat_region <- function(ref_data, geom = GeomSf, required_aes, ...){
 # sf2stat Proposed usage
 
 ``` r
-stat_county <- function(...){stat_region(ref_data = nc_ref, required_aes = "county_name|fips", ...)}  # uses GeomSf as default
+stat_county <- function(...){stat_region(ref_data = nc_ref, required_aes = "county_name|fips", id_index = 1, ...)}  # uses GeomSf as default
 
 geom_county_sf <- function(...){stat_county(geom = GeomSf,...)}
 geom_county <- geom_county_sf   # convenience short name
