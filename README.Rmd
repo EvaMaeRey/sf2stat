@@ -13,7 +13,9 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "man/figures/README-",
-  eval = T
+  eval = T,
+  warning = F,
+  message = F
 )
 
 library(tidyverse)
@@ -72,6 +74,12 @@ qstat <- function(compute_group = Stat$compute_group, ...){
   
 }
 
+# proposed functions for sf2stat
+qstat_panel <- function(compute_panel = Stat$compute_group, ...){
+  
+  ggproto("StatTemp", Stat, compute_panel = compute_panel, ...)
+  
+}
 
 qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
     na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, ...) {
@@ -81,12 +89,12 @@ qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", p
             ...)), coord_sf(default = TRUE))
 }
 
-prep_geo_reference <- function(ref_data){
+prep_geo_reference <- function(ref_data, id_index = 1){
   
   ref_data |>
   ggplot2::StatSf$compute_panel(coord = ggplot2::CoordSf) |>
   ggplot2::StatSfCoordinates$compute_group(coord = ggplot2::CoordSf) %>% 
-    mutate(id_col = .[[1]])
+    mutate(id_col = .[[id_index]])
   
 }
 
@@ -103,13 +111,41 @@ nc_ref |>
   prep_geo_reference()
 
 # Flip the script... prepare compute (join) to happen in layer (NEW!)
-compute_panel_region <- function(data, scales, ref_data){
+compute_panel_region <- function(data, scales, ref_data, id_index = 1,
+                                 stamp = FALSE, keep_id = NULL,
+                                 drop_id = NULL){
   
   ref_data %>% 
-    prep_geo_reference() %>% 
+    prep_geo_reference(id_index = id_index) ->
+  ref_data
+  
+  if(!is.null(keep_id)){
+  
+  ref_data %>% 
+    filter(id_col %in% keep_id) ->
+  ref_data
+  
+    }
+  
+  if(!is.null(drop_id)){
+  
+  ref_data %>% 
+    filter(!(id_col %in% drop_id)) ->
+  ref_data
+  
+    }
+  
+  if(stamp){
+    
+    ref_data
+    
+  }else{
+  
+ ref_data %>% 
     inner_join(data)
   
-  
+  }
+    
 }
 
 
@@ -132,7 +168,8 @@ geom_county_label <- function(...){stat_county(geom = GeomLabel, ...)}
 
 
 # library(ggnc)
-nc |>  # use emily's data here for demo! 
+nc |> 
+  sf::st_drop_geometry() |># use emily's data here for demo! 
   ggplot() + 
   aes(fips = FIPS) + # non-native positional mapping...
   geom_county() + 
@@ -157,42 +194,82 @@ geom_nc_county2 <- function(...){
 # wrapping up more
 
 ```{r}
-stat_region <- function(ref_data, geom = GeomSf, ...){
+
+qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
+    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, crs, ...) {
+    c(layer_sf(geom = geom, data = data, mapping = mapping, 
+        stat = stat, position = position, show.legend = show.legend, 
+        inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
+            ...)), coord_sf(crs = crs))
+}
+
+
+stat_region <- function(ref_data, geom = GeomSf, required_aes, ...){
   
   StatTemp <- ggproto("StatTemp", Stat, 
                       compute_panel = compute_panel_region, 
-                      default_aes = aes(label = after_stat(id_col)))
+                      default_aes = aes(label = after_stat(id_col)),
+                      required_aes = required_aes)
   
-  qlayer_sf(stat = StatTemp, geom = geom,
-            ref_data = ref_data, ...)
+  qlayer_sf_crs(stat = StatTemp, 
+                geom = geom,
+                ref_data = ref_data, 
+                crs = sf::st_crs(ref_data), ...)
   
 }
 
 
+```
 
-stat_county <- function(...){stat_region(ref_data = nc_ref, ...)}  # uses GeomSf
-geom_county_sf <- function(...){stat_region(ref_data = nc_ref, geom = GeomSf,...)}
-geom_county <- geom_county_sf   # convenience name
-geom_county_label <- function(...){stat_region(ref_data = nc_ref, geom = GeomLabel,...)}
-geom_county_text <- function(...){stat_region(ref_data = nc_ref, geom = GeomText, ...)}
 
-nc |>
+
+
+
+# sf2stat Proposed usage
+
+
+```{r, fig.height=2}
+stat_county <- function(...){stat_region(ref_data = nc_ref, required_aes = "county_name|fips", ...)}  # uses GeomSf as default
+
+geom_county_sf <- function(...){stat_county(geom = GeomSf,...)}
+geom_county <- geom_county_sf   # convenience short name
+geom_county_label <- function(...){stat_county(geom = GeomLabel,...)}
+geom_county_text <- function(...){stat_county(geom = GeomText, ...)}
+
+stamp_county_sf <- function(...){geom_county_sf(stamp = T, ...)}
+stamp_county <- stamp_county_sf
+stamp_county_label <- function(...){geom_county_label(stamp = T, ...)}
+stamp_county_text <- function(...){geom_county_text(stamp = T, ...)}
+
+read.csv("nc-midterms.csv") |>
   ggplot() + 
-  aes(fips = FIPS) + 
-  geom_county() + 
-  geom_county_text(color = "white", check_overlap = T) + 
-  aes(fill = BIR74) 
+  aes(county_name = str_to_title(desc_county)) + 
+  geom_county()
+
+read.csv("nc-midterms.csv") |>
+  ggplot() + 
+  aes(county_name = str_to_title(desc_county)) + 
+  stamp_county(fill = 'darkgrey')
 
 last_plot() + 
-  stat_county(color = "red", geom = "point")
+  geom_county()
 
-nc |>
-  ggplot() + 
-  aes(fips = FIPS) + 
-  geom_county() + 
-  geom_county_text(check_overlap = T, 
-                   aes(color = BIR74)) + 
-  scale_color_viridis_c()
+options(scipen = 10)
+last_plot() + 
+  aes(fill = n/100000)
+
+last_plot() + 
+  aes(fill = n/100000) + 
+  stamp_county(fill = NA, keep_id = "Mecklenburg", color = "orange")
+
+last_plot() +
+   geom_county_text(color = "white", check_overlap = T, size = 2)
+
+last_plot() + 
+   aes(fill = cd_party) 
+
+last_plot() +
+  aes(fill = ind_vote)
 ```
 
 

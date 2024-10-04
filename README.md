@@ -51,6 +51,12 @@ qstat <- function(compute_group = Stat$compute_group, ...){
   
 }
 
+# proposed functions for sf2stat
+qstat_panel <- function(compute_panel = Stat$compute_group, ...){
+  
+  ggproto("StatTemp", Stat, compute_panel = compute_panel, ...)
+  
+}
 
 qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
     na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, ...) {
@@ -60,12 +66,12 @@ qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", p
             ...)), coord_sf(default = TRUE))
 }
 
-prep_geo_reference <- function(ref_data){
+prep_geo_reference <- function(ref_data, id_index = 1){
   
   ref_data |>
   ggplot2::StatSf$compute_panel(coord = ggplot2::CoordSf) |>
   ggplot2::StatSfCoordinates$compute_group(coord = ggplot2::CoordSf) %>% 
-    mutate(id_col = .[[1]])
+    mutate(id_col = .[[id_index]])
   
 }
 
@@ -91,8 +97,6 @@ nc_ref <- nc |>
 # just a demo of whate prep_geo_reference does - don't need to have as part of 
 nc_ref |>
   prep_geo_reference()
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
 #> Simple feature collection with 100 features and 9 fields
 #> Geometry type: MULTIPOLYGON
 #> Dimension:     XY
@@ -126,13 +130,41 @@ nc_ref |>
 ``` r
 
 # Flip the script... prepare compute (join) to happen in layer (NEW!)
-compute_panel_region <- function(data, scales, ref_data){
+compute_panel_region <- function(data, scales, ref_data, id_index = 1,
+                                 stamp = FALSE, keep_id = NULL,
+                                 drop_id = NULL){
   
   ref_data %>% 
-    prep_geo_reference() %>% 
+    prep_geo_reference(id_index = id_index) ->
+  ref_data
+  
+  if(!is.null(keep_id)){
+  
+  ref_data %>% 
+    filter(id_col %in% keep_id) ->
+  ref_data
+  
+    }
+  
+  if(!is.null(drop_id)){
+  
+  ref_data %>% 
+    filter(!(id_col %in% drop_id)) ->
+  ref_data
+  
+    }
+  
+  if(stamp){
+    
+    ref_data
+    
+  }else{
+  
+ ref_data %>% 
     inner_join(data)
   
-  
+  }
+    
 }
 
 
@@ -155,19 +187,14 @@ geom_county_label <- function(...){stat_county(geom = GeomLabel, ...)}
 
 
 # library(ggnc)
-nc |>  # use emily's data here for demo! 
+nc |> 
+  sf::st_drop_geometry() |># use emily's data here for demo! 
   ggplot() + 
   aes(fips = FIPS) + # non-native positional mapping...
   geom_county() + 
   aes(fill = BIR74) + # use emily's variable of interest...
   geom_county_text(color = "white", 
                       check_overlap = TRUE)
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
 ```
 
 ![](man/figures/README-sf_df_add_xy_center_coords-1.png)<!-- -->
@@ -176,12 +203,6 @@ nc |>  # use emily's data here for demo!
 
 
 layer_data() %>% head()
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
 #>      fill       label county_name  fips      xmin      xmax     ymin     ymax
 #> 1 #153049        Ashe        Ashe 37009 -84.32385 -75.45698 33.88199 36.58965
 #> 2 #142C45   Alleghany   Alleghany 37005 -84.32385 -75.45698 33.88199 36.58965
@@ -219,76 +240,113 @@ geom_nc_county2 <- function(...){
 # wrapping up more
 
 ``` r
-stat_region <- function(ref_data, geom = GeomSf, ...){
-  
-  StatTemp <- ggproto("StatTemp", Stat, 
-                      compute_panel = compute_panel_region, 
-                      default_aes = aes(label = after_stat(id_col)))
-  
-  qlayer_sf(stat = StatTemp, geom = geom,
-            ref_data = ref_data, ...)
-  
+
+qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
+    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, crs, ...) {
+    c(layer_sf(geom = geom, data = data, mapping = mapping, 
+        stat = stat, position = position, show.legend = show.legend, 
+        inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
+            ...)), coord_sf(crs = crs))
 }
 
 
-
-stat_county <- function(...){stat_region(ref_data = nc_ref, ...)}  # uses GeomSf
-geom_county_sf <- function(...){stat_region(ref_data = nc_ref, geom = GeomSf,...)}
-geom_county <- geom_county_sf   # convenience name
-geom_county_label <- function(...){stat_region(ref_data = nc_ref, geom = GeomLabel,...)}
-geom_county_text <- function(...){stat_region(ref_data = nc_ref, geom = GeomText, ...)}
-
-nc |>
-  ggplot() + 
-  aes(fips = FIPS) + 
-  geom_county() + 
-  geom_county_text(color = "white", check_overlap = T) + 
-  aes(fill = BIR74) 
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
+stat_region <- function(ref_data, geom = GeomSf, required_aes, ...){
+  
+  StatTemp <- ggproto("StatTemp", Stat, 
+                      compute_panel = compute_panel_region, 
+                      default_aes = aes(label = after_stat(id_col)),
+                      required_aes = required_aes)
+  
+  qlayer_sf_crs(stat = StatTemp, 
+                geom = geom,
+                ref_data = ref_data, 
+                crs = sf::st_crs(ref_data), ...)
+  
+}
 ```
 
-![](man/figures/README-unnamed-chunk-3-1.png)<!-- -->
+# sf2stat Proposed usage
+
+``` r
+stat_county <- function(...){stat_region(ref_data = nc_ref, required_aes = "county_name|fips", ...)}  # uses GeomSf as default
+
+geom_county_sf <- function(...){stat_county(geom = GeomSf,...)}
+geom_county <- geom_county_sf   # convenience short name
+geom_county_label <- function(...){stat_county(geom = GeomLabel,...)}
+geom_county_text <- function(...){stat_county(geom = GeomText, ...)}
+
+stamp_county_sf <- function(...){geom_county_sf(stamp = T, ...)}
+stamp_county <- stamp_county_sf
+stamp_county_label <- function(...){geom_county_label(stamp = T, ...)}
+stamp_county_text <- function(...){geom_county_text(stamp = T, ...)}
+
+read.csv("nc-midterms.csv") |>
+  ggplot() + 
+  aes(county_name = str_to_title(desc_county)) + 
+  geom_county()
+```
+
+![](man/figures/README-unnamed-chunk-4-1.png)<!-- -->
+
+``` r
+
+read.csv("nc-midterms.csv") |>
+  ggplot() + 
+  aes(county_name = str_to_title(desc_county)) + 
+  stamp_county(fill = 'darkgrey')
+```
+
+![](man/figures/README-unnamed-chunk-4-2.png)<!-- -->
 
 ``` r
 
 last_plot() + 
-  stat_county(color = "red", geom = "point")
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
+  geom_county()
 ```
 
-![](man/figures/README-unnamed-chunk-3-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-4-3.png)<!-- -->
 
 ``` r
 
-nc |>
-  ggplot() + 
-  aes(fips = FIPS) + 
-  geom_county() + 
-  geom_county_text(check_overlap = T, 
-                   aes(color = BIR74)) + 
-  scale_color_viridis_c()
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
-#> Warning in st_point_on_surface.sfc(sf::st_zm(x)): st_point_on_surface may not
-#> give correct results for longitude/latitude data
-#> Joining with `by = join_by(fips, geometry)`
+options(scipen = 10)
+last_plot() + 
+  aes(fill = n/100000)
 ```
 
-![](man/figures/README-unnamed-chunk-3-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-4-4.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  aes(fill = n/100000) + 
+  stamp_county(fill = NA, keep_id = "Mecklenburg", color = "orange")
+```
+
+![](man/figures/README-unnamed-chunk-4-5.png)<!-- -->
+
+``` r
+
+last_plot() +
+   geom_county_text(color = "white", check_overlap = T, size = 2)
+```
+
+![](man/figures/README-unnamed-chunk-4-6.png)<!-- -->
+
+``` r
+
+last_plot() + 
+   aes(fill = cd_party) 
+```
+
+![](man/figures/README-unnamed-chunk-4-7.png)<!-- -->
+
+``` r
+
+last_plot() +
+  aes(fill = ind_vote)
+```
+
+![](man/figures/README-unnamed-chunk-4-8.png)<!-- -->
 
 ``` r
 knitr::knit_exit()
