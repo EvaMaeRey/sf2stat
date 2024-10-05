@@ -35,14 +35,18 @@ Without the package, we live in the effortful world, in which we'd have to prep 
 
 With the {sf2stat} package, we'll live in a different world (🦄 🦄 🦄) where the task is a snap 🫰: 
 
-Proposed API:
+Proposed API is:
 
 ```
-
 library(sf2stat)
-
-my_geom_ref_data <- sf_df_prep_for_stat(data, id_col_name = county_name)
-
+--
+--
+read.csv("nc-midterms.csv") |>
+  ggplot() + 
+  aes(county_name = str_to_title(desc_county)) + 
+  geom_county() + 
+  aes(fill = cd_party) +
+  geom_county_text()
 ```
 
 
@@ -54,41 +58,27 @@ In this section we'll use the nc sf dataframe to check out how our functions wor
 ## Select toy sf data
 
 ```{r}
+nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
+  select(county_name = NAME, fips = FIPS)
 
+read.csv("nc-midterms.csv") |>
+  mutate(county_name = str_to_title(desc_county)) |>
+  left_join(nc_ref) %>% 
+  ggplot() + 
+  geom_sf() +
+  aes(fill = cd_party, 
+      label = county_name,
+      geometry = geometry)+
+  geom_sf_text(check_overlap = T)
 
 
 ```
 
 
-## `sf_df_add_xy_center_coords()`
 
-First we have a function that takes an sf data frame and adds columns x and y for the centroids of the geometries.
 
-```{r sf_df_add_xy_center_coords}
-library(tidyverse)
-
-# proposed functions for sf2stat
-qstat <- function(compute_group = Stat$compute_group, ...){
-  
-  ggproto("StatTemp", Stat, compute_group = compute_group, ...)
-  
-}
-
-# proposed functions for sf2stat
-qstat_panel <- function(compute_panel = Stat$compute_group, ...){
-  
-  ggproto("StatTemp", Stat, compute_panel = compute_panel, ...)
-  
-}
-
-qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
-    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, ...) {
-    c(layer_sf(geom = geom, data = data, mapping = mapping, 
-        stat = stat, position = position, show.legend = show.legend, 
-        inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
-            ...)), coord_sf(default = TRUE))
-}
-
+```{r}
+# we want our stat to do stuff that StatSf and StatSfCoordinates does.
 prep_geo_reference <- function(ref_data, id_index = 1){
   
   ref_data |>
@@ -97,18 +87,6 @@ prep_geo_reference <- function(ref_data, id_index = 1){
     mutate(id_col = .[[id_index]])
   
 }
-
-
-# given some data with geometry shape column
-nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
-
-# select relevant id columns (this will keep geometry column)
-nc_ref <- nc |>
-  select(county_name = NAME, fips = FIPS)
-
-# just a demo of whate prep_geo_reference does - don't need to have as part of 
-nc_ref |>
-  prep_geo_reference()
 
 # Flip the script... prepare compute (join) to happen in layer (NEW!)
 compute_panel_region <- function(data, scales, ref_data, id_index = 1,
@@ -147,46 +125,22 @@ compute_panel_region <- function(data, scales, ref_data, id_index = 1,
   }
     
 }
+```
 
 
-stat_county <- function(geom = GeomSf, ...){
-  
-   StatTemp <- ggproto("StatTemp", Stat, 
-                       compute_panel = compute_panel_region,
-                       default_aes = aes(label = after_stat(id_col)))
-  
-  qlayer_sf(stat = StatTemp, 
-         geom = geom,
-         ref_data = nc_ref, ...)
-  
-  }
+```{r}
+nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
+  select(county_name = NAME, fips = FIPS)
 
+read.csv("nc-midterms.csv") |>
+  mutate(county_name = str_to_title(desc_county)) |>
+  select(county_name) |>
+  compute_panel_region(ref_data = nc_ref)
 
-geom_county <- stat_county
-geom_county_text <- function(...){stat_county(geom = GeomText, ...)}
-geom_county_label <- function(...){stat_county(geom = GeomLabel, ...)}
-
-
-# library(ggnc)
-nc |> 
-  sf::st_drop_geometry() |># use emily's data here for demo! 
-  ggplot() + 
-  aes(fips = FIPS) + # non-native positional mapping...
-  geom_county() + 
-  aes(fill = BIR74) + # use emily's variable of interest...
-  geom_county_text(color = "white", 
-                      check_overlap = TRUE)
-
-
-layer_data() %>% head()
-
-geom_nc_county2 <- function(...){
-  geom_sf(stat = qstat(compute_panel_region),  # w compute group
-          ref_data = nc_ref, ...)
-  }
-  
-# last_plot() + 
-#   geom_nc_county2()
+read.csv("nc-midterms.csv") |>
+  mutate(county_name = str_to_title(desc_county)) |>
+  select(county_name) |>
+  compute_panel_region(ref_data = nc_ref, keep_id = "Mecklenburg")
 ```
 
 
@@ -194,37 +148,34 @@ geom_nc_county2 <- function(...){
 # wrapping up more
 
 ```{r}
-
-qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
-    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, crs, ...) {
+# same as geom_sf but geom (and stat) is flexible
+qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", 
+                           stat = "sf", position = "identity", 
+                           na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, 
+                           crs, ...) {
+  
     c(layer_sf(geom = geom, data = data, mapping = mapping, 
         stat = stat, position = position, show.legend = show.legend, 
         inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
-            ...)), coord_sf(crs = crs))
+            ...)), 
+      coord_sf(crs = crs))
 }
 
-
-stat_region <- function(ref_data, geom = GeomSf, required_aes, id_index = 1, ...){
+stat_region <- function(ref_data, id_index = 1, required_aes = c(), geom = GeomSf,  ...){
   
-  StatTemp <- ggproto("StatTemp", Stat, 
-                      compute_panel = compute_panel_region, 
-                      default_aes = aes(label = after_stat(id_col)),
-                      required_aes = required_aes)
+  StatSfJoin <- ggproto("StatSfJoin", Stat, 
+                        compute_panel = compute_panel_region, 
+                        default_aes = aes(label = after_stat(id_col)),
+                        required_aes = required_aes)
   
-  qlayer_sf_crs(stat = StatTemp, 
+  qlayer_sf_crs(stat = StatSfJoin, 
                 geom = geom,
                 ref_data = ref_data, 
                 crs = sf::st_crs(ref_data), 
                 id_index = id_index, ...)
   
 }
-
-
-
-
 ```
-
-
 
 
 

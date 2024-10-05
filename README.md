@@ -22,12 +22,17 @@ geometry.
 With the {sf2stat} package, we’ll live in a different world (🦄 🦄 🦄)
 where the task is a snap 🫰:
 
-Proposed API:
-
+Proposed API is:
 
     library(sf2stat)
-
-    my_geom_ref_data <- sf_df_prep_for_stat(data, id_col_name = county_name)
+    --
+    --
+    read.csv("nc-midterms.csv") |>
+      ggplot() + 
+      aes(county_name = str_to_title(desc_county)) + 
+      geom_county() + 
+      aes(fill = cd_party) +
+      geom_county_text()
 
 # Package build Part I. Work out functionality ✅
 
@@ -36,48 +41,9 @@ functions work.
 
 ## Select toy sf data
 
-## `sf_df_add_xy_center_coords()`
-
-First we have a function that takes an sf data frame and adds columns x
-and y for the centroids of the geometries.
-
 ``` r
-library(tidyverse)
-
-# proposed functions for sf2stat
-qstat <- function(compute_group = Stat$compute_group, ...){
-  
-  ggproto("StatTemp", Stat, compute_group = compute_group, ...)
-  
-}
-
-# proposed functions for sf2stat
-qstat_panel <- function(compute_panel = Stat$compute_group, ...){
-  
-  ggproto("StatTemp", Stat, compute_panel = compute_panel, ...)
-  
-}
-
-qlayer_sf <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
-    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, ...) {
-    c(layer_sf(geom = geom, data = data, mapping = mapping, 
-        stat = stat, position = position, show.legend = show.legend, 
-        inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
-            ...)), coord_sf(default = TRUE))
-}
-
-prep_geo_reference <- function(ref_data, id_index = 1){
-  
-  ref_data |>
-  ggplot2::StatSf$compute_panel(coord = ggplot2::CoordSf) |>
-  ggplot2::StatSfCoordinates$compute_group(coord = ggplot2::CoordSf) %>% 
-    mutate(id_col = .[[id_index]])
-  
-}
-
-
-# given some data with geometry shape column
-nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
+nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
+  select(county_name = NAME, fips = FIPS)
 #> Reading layer `nc' from data source 
 #>   `/Library/Frameworks/R.framework/Versions/4.4-x86_64/Resources/library/sf/shape/nc.shp' 
 #>   using driver `ESRI Shapefile'
@@ -90,44 +56,29 @@ nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
 
 ``` r
 
-# select relevant id columns (this will keep geometry column)
-nc_ref <- nc |>
-  select(county_name = NAME, fips = FIPS)
-
-# just a demo of whate prep_geo_reference does - don't need to have as part of 
-nc_ref |>
-  prep_geo_reference()
-#> Simple feature collection with 100 features and 9 fields
-#> Geometry type: MULTIPOLYGON
-#> Dimension:     XY
-#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
-#> Geodetic CRS:  NAD27
-#> First 10 features:
-#>    county_name  fips                       geometry      xmin      xmax
-#> 1         Ashe 37009 MULTIPOLYGON (((-81.47276 3... -84.32385 -75.45698
-#> 2    Alleghany 37005 MULTIPOLYGON (((-81.23989 3... -84.32385 -75.45698
-#> 3        Surry 37171 MULTIPOLYGON (((-80.45634 3... -84.32385 -75.45698
-#> 4    Currituck 37053 MULTIPOLYGON (((-76.00897 3... -84.32385 -75.45698
-#> 5  Northampton 37131 MULTIPOLYGON (((-77.21767 3... -84.32385 -75.45698
-#> 6     Hertford 37091 MULTIPOLYGON (((-76.74506 3... -84.32385 -75.45698
-#> 7       Camden 37029 MULTIPOLYGON (((-76.00897 3... -84.32385 -75.45698
-#> 8        Gates 37073 MULTIPOLYGON (((-76.56251 3... -84.32385 -75.45698
-#> 9       Warren 37185 MULTIPOLYGON (((-78.30876 3... -84.32385 -75.45698
-#> 10      Stokes 37169 MULTIPOLYGON (((-80.02567 3... -84.32385 -75.45698
-#>        ymin     ymax         x        y      id_col
-#> 1  33.88199 36.58965 -81.49496 36.42112        Ashe
-#> 2  33.88199 36.58965 -81.13241 36.47396   Alleghany
-#> 3  33.88199 36.58965 -80.69280 36.38828       Surry
-#> 4  33.88199 36.58965 -75.93852 36.30697   Currituck
-#> 5  33.88199 36.58965 -77.36988 36.35211 Northampton
-#> 6  33.88199 36.58965 -77.04217 36.39709    Hertford
-#> 7  33.88199 36.58965 -76.18290 36.36249      Camden
-#> 8  33.88199 36.58965 -76.72199 36.43576       Gates
-#> 9  33.88199 36.58965 -78.11342 36.42681      Warren
-#> 10 33.88199 36.58965 -80.23459 36.40106      Stokes
+read.csv("nc-midterms.csv") |>
+  mutate(county_name = str_to_title(desc_county)) |>
+  left_join(nc_ref) %>% 
+  ggplot() + 
+  geom_sf() +
+  aes(fill = cd_party, 
+      label = county_name,
+      geometry = geometry)+
+  geom_sf_text(check_overlap = T)
 ```
 
+![](man/figures/README-unnamed-chunk-2-1.png)<!-- -->
+
 ``` r
+# we want our stat to do stuff that StatSf and StatSfCoordinates does.
+prep_geo_reference <- function(ref_data, id_index = 1){
+  
+  ref_data |>
+  ggplot2::StatSf$compute_panel(coord = ggplot2::CoordSf) |>
+  ggplot2::StatSfCoordinates$compute_group(coord = ggplot2::CoordSf) %>% 
+    mutate(id_col = .[[id_index]])
+  
+}
 
 # Flip the script... prepare compute (join) to happen in layer (NEW!)
 compute_panel_region <- function(data, scales, ref_data, id_index = 1,
@@ -166,98 +117,98 @@ compute_panel_region <- function(data, scales, ref_data, id_index = 1,
   }
     
 }
-
-
-stat_county <- function(geom = GeomSf, ...){
-  
-   StatTemp <- ggproto("StatTemp", Stat, 
-                       compute_panel = compute_panel_region,
-                       default_aes = aes(label = after_stat(id_col)))
-  
-  qlayer_sf(stat = StatTemp, 
-         geom = geom,
-         ref_data = nc_ref, ...)
-  
-  }
-
-
-geom_county <- stat_county
-geom_county_text <- function(...){stat_county(geom = GeomText, ...)}
-geom_county_label <- function(...){stat_county(geom = GeomLabel, ...)}
-
-
-# library(ggnc)
-nc |> 
-  sf::st_drop_geometry() |># use emily's data here for demo! 
-  ggplot() + 
-  aes(fips = FIPS) + # non-native positional mapping...
-  geom_county() + 
-  aes(fill = BIR74) + # use emily's variable of interest...
-  geom_county_text(color = "white", 
-                      check_overlap = TRUE)
 ```
 
-![](man/figures/README-sf_df_add_xy_center_coords-1.png)<!-- -->
-
 ``` r
-
-
-layer_data() %>% head()
-#>      fill       label county_name  fips      xmin      xmax     ymin     ymax
-#> 1 #153049        Ashe        Ashe 37009 -84.32385 -75.45698 33.88199 36.58965
-#> 2 #142C45   Alleghany   Alleghany 37005 -84.32385 -75.45698 33.88199 36.58965
-#> 3 #1B3B59       Surry       Surry 37171 -84.32385 -75.45698 33.88199 36.58965
-#> 4 #142C45   Currituck   Currituck 37053 -84.32385 -75.45698 33.88199 36.58965
-#> 5 #16314C Northampton Northampton 37131 -84.32385 -75.45698 33.88199 36.58965
-#> 6 #16324C    Hertford    Hertford 37091 -84.32385 -75.45698 33.88199 36.58965
-#>           x        y      id_col PANEL group                       geometry
-#> 1 -81.49496 36.42112        Ashe     1     5 MULTIPOLYGON (((-81.47276 3...
-#> 2 -81.13241 36.47396   Alleghany     1     3 MULTIPOLYGON (((-81.23989 3...
-#> 3 -80.69280 36.38828       Surry     1    86 MULTIPOLYGON (((-80.45634 3...
-#> 4 -75.93852 36.30697   Currituck     1    27 MULTIPOLYGON (((-76.00897 3...
-#> 5 -77.36988 36.35211 Northampton     1    66 MULTIPOLYGON (((-77.21767 3...
-#> 6 -77.04217 36.39709    Hertford     1    46 MULTIPOLYGON (((-76.74506 3...
-#>   linetype alpha stroke
-#> 1        1    NA    0.5
-#> 2        1    NA    0.5
-#> 3        1    NA    0.5
-#> 4        1    NA    0.5
-#> 5        1    NA    0.5
-#> 6        1    NA    0.5
+nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
+  select(county_name = NAME, fips = FIPS)
+#> Reading layer `nc' from data source 
+#>   `/Library/Frameworks/R.framework/Versions/4.4-x86_64/Resources/library/sf/shape/nc.shp' 
+#>   using driver `ESRI Shapefile'
+#> Simple feature collection with 100 features and 14 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
+#> Geodetic CRS:  NAD27
 ```
 
 ``` r
 
-geom_nc_county2 <- function(...){
-  geom_sf(stat = qstat(compute_panel_region),  # w compute group
-          ref_data = nc_ref, ...)
-  }
-  
-# last_plot() + 
-#   geom_nc_county2()
+read.csv("nc-midterms.csv") |>
+  mutate(county_name = str_to_title(desc_county)) |>
+  select(county_name) |>
+  compute_panel_region(ref_data = nc_ref)
+#> Simple feature collection with 98 features and 9 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
+#> Geodetic CRS:  NAD27
+#> First 10 features:
+#>    county_name  fips      xmin      xmax     ymin     ymax         x        y
+#> 1         Ashe 37009 -84.32385 -75.45698 33.88199 36.58965 -81.49496 36.42112
+#> 2    Alleghany 37005 -84.32385 -75.45698 33.88199 36.58965 -81.13241 36.47396
+#> 3        Surry 37171 -84.32385 -75.45698 33.88199 36.58965 -80.69280 36.38828
+#> 4    Currituck 37053 -84.32385 -75.45698 33.88199 36.58965 -75.93852 36.30697
+#> 5  Northampton 37131 -84.32385 -75.45698 33.88199 36.58965 -77.36988 36.35211
+#> 6     Hertford 37091 -84.32385 -75.45698 33.88199 36.58965 -77.04217 36.39709
+#> 7       Camden 37029 -84.32385 -75.45698 33.88199 36.58965 -76.18290 36.36249
+#> 8        Gates 37073 -84.32385 -75.45698 33.88199 36.58965 -76.72199 36.43576
+#> 9       Warren 37185 -84.32385 -75.45698 33.88199 36.58965 -78.11342 36.42681
+#> 10      Stokes 37169 -84.32385 -75.45698 33.88199 36.58965 -80.23459 36.40106
+#>         id_col                       geometry
+#> 1         Ashe MULTIPOLYGON (((-81.47276 3...
+#> 2    Alleghany MULTIPOLYGON (((-81.23989 3...
+#> 3        Surry MULTIPOLYGON (((-80.45634 3...
+#> 4    Currituck MULTIPOLYGON (((-76.00897 3...
+#> 5  Northampton MULTIPOLYGON (((-77.21767 3...
+#> 6     Hertford MULTIPOLYGON (((-76.74506 3...
+#> 7       Camden MULTIPOLYGON (((-76.00897 3...
+#> 8        Gates MULTIPOLYGON (((-76.56251 3...
+#> 9       Warren MULTIPOLYGON (((-78.30876 3...
+#> 10      Stokes MULTIPOLYGON (((-80.02567 3...
+```
+
+``` r
+
+read.csv("nc-midterms.csv") |>
+  mutate(county_name = str_to_title(desc_county)) |>
+  select(county_name) |>
+  compute_panel_region(ref_data = nc_ref, keep_id = "Mecklenburg")
+#> Simple feature collection with 1 feature and 9 fields
+#> Geometry type: MULTIPOLYGON
+#> Dimension:     XY
+#> Bounding box:  xmin: -81.06555 ymin: 35.00202 xmax: -80.53964 ymax: 35.50912
+#> Geodetic CRS:  NAD27
+#>   county_name  fips      xmin      xmax     ymin     ymax         x        y
+#> 1 Mecklenburg 37119 -84.32385 -75.45698 33.88199 36.58965 -80.82771 35.25729
+#>        id_col                       geometry
+#> 1 Mecklenburg MULTIPOLYGON (((-81.0493 35...
 ```
 
 # wrapping up more
 
 ``` r
-
-qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", stat = "sf", position = "identity", 
-    na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, crs, ...) {
+# same as geom_sf but geom (and stat) is flexible
+qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", 
+                           stat = "sf", position = "identity", 
+                           na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, 
+                           crs, ...) {
+  
     c(layer_sf(geom = geom, data = data, mapping = mapping, 
         stat = stat, position = position, show.legend = show.legend, 
         inherit.aes = inherit.aes, params = rlang::list2(na.rm = na.rm, 
-            ...)), coord_sf(crs = crs))
+            ...)), 
+      coord_sf(crs = crs))
 }
 
-
-stat_region <- function(ref_data, geom = GeomSf, required_aes, id_index = 1, ...){
+stat_region <- function(ref_data, geom = GeomSf, required_aes = c(), id_index = 1, ...){
   
-  StatTemp <- ggproto("StatTemp", Stat, 
-                      compute_panel = compute_panel_region, 
-                      default_aes = aes(label = after_stat(id_col)),
-                      required_aes = required_aes)
+  StatSfJoin <- ggproto("StatSfJoin", Stat, 
+                        compute_panel = compute_panel_region, 
+                        default_aes = aes(label = after_stat(id_col)),
+                        required_aes = required_aes)
   
-  qlayer_sf_crs(stat = StatTemp, 
+  qlayer_sf_crs(stat = StatSfJoin, 
                 geom = geom,
                 ref_data = ref_data, 
                 crs = sf::st_crs(ref_data), 
@@ -335,7 +286,7 @@ read.csv("nc-midterms.csv") |>
   geom_county()
 ```
 
-![](man/figures/README-unnamed-chunk-5-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-7-1.png)<!-- -->
 
 We see that there are actually undiscovered counties, as exact name
 matching can be a little dicy. Using fips which would probably perform
@@ -353,7 +304,7 @@ read.csv("nc-midterms.csv") |>
   stamp_county(fill = 'darkgrey')
 ```
 
-![](man/figures/README-unnamed-chunk-6-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
 
 Then we use geom_county(), which reflects your data and the success of
 the underlying join process.
@@ -363,7 +314,7 @@ last_plot() +
   geom_county()
 ```
 
-![](man/figures/README-unnamed-chunk-7-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-9-1.png)<!-- -->
 
 Then look at population choropleth (fill = n) and highlight Mecklenburg
 with convenience annotation layer ‘stamp_county’
@@ -374,7 +325,7 @@ last_plot() +
   aes(fill = n/100000)
 ```
 
-![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-10-1.png)<!-- -->
 
 highlight at county of interest…
 
@@ -385,7 +336,7 @@ last_plot() +
                        linewidth = 1)
 ```
 
-![](man/figures/README-unnamed-chunk-9-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-11-1.png)<!-- -->
 
 We can add a text layer defaults to ref_data column 1 (id_index
 setting)…
@@ -397,7 +348,7 @@ last_plot() +
                     size = 2)
 ```
 
-![](man/figures/README-unnamed-chunk-10-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-12-1.png)<!-- -->
 
 We can look at another variable…
 
@@ -406,7 +357,7 @@ last_plot() +
    aes(fill = cd_party) 
 ```
 
-![](man/figures/README-unnamed-chunk-11-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-13-1.png)<!-- -->
 
 And another…
 
@@ -415,7 +366,7 @@ last_plot() +
   aes(fill = ind_vote)
 ```
 
-![](man/figures/README-unnamed-chunk-12-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-14-1.png)<!-- -->
 
 And look at some values for that variable
 
@@ -424,7 +375,7 @@ last_plot() +
   aes(label = round(ind_vote, 2))
 ```
 
-![](man/figures/README-unnamed-chunk-13-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
 knitr::knit_exit()
