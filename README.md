@@ -201,7 +201,10 @@ qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf",
       coord_sf(crs = crs))
 }
 
-stat_region <- function(ref_data, geom = GeomSf, required_aes = c(), id_index = 1, ...){
+stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref), 
+                        id_index = 1, 
+                        required_aes = getOption("sf2stat.required_aes", "fips|county_name"),
+                        geom = GeomSf,  ...){
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
@@ -215,7 +218,151 @@ stat_region <- function(ref_data, geom = GeomSf, required_aes = c(), id_index = 
                 id_index = id_index, ...)
   
 }
+
+
+GeomOutline <- ggproto("GeomOutline", GeomSf,
+                       default_aes = aes(!!!modifyList(GeomSf$default_aes,
+                                                       aes(fill = NA, 
+                                                           color = "black"))))
+
+geom_region_sf <- function(...){stat_region(geom = GeomSf,...)}
+geom_region <- geom_region_sf   # convenience short name
+geom_region_outline <- function(...){stat_region(geom = GeomOutline, ...)}
+geom_region_label <- function(...){stat_region(geom = GeomLabel,...)}
+geom_region_text <- function(...){stat_region(geom = GeomText, ...)}
+
+stamp_region_sf <- function(...){geom_region_sf(stamp = T, ...)}
+stamp_region <- stamp_region_sf
+stamp_region_outline <- function(...){geom_region_outline(stamp = T, ...)}
+stamp_region_label <- function(...){geom_region_label(stamp = T, ...)}
+stamp_region_text <- function(...){geom_region_text(stamp = T, ...)}
+
+
+
+options(sf2stat.ref_data = nc_ref,
+        sf2stat.required_aes = "fips|county_name")
+
+# north carolina counties....
+read.csv("nc-midterms.csv") |>
+  ggplot() + 
+  aes(county_name = str_to_title(desc_county)) + 
+  stamp_region(fill = 'darkgrey') + 
+  geom_region() + 
+  aes(fill = n/1000) + 
+  stamp_region_outline(
+    keep_id = "Mecklenburg",
+    color = "orange",
+    linewidth = 1) + 
+  geom_region_text(check_overlap = T,
+                   color = "whitesmoke")
 ```
+
+![](man/figures/README-unnamed-chunk-5-1.png)<!-- -->
+
+``` r
+
+chilemapas::generar_regiones() %>% 
+  mutate(numero_region = as.numeric(codigo_region)) %>% 
+  options(sf2stat.ref_data = .,
+          sf2stat.required_aes = "codigo_region|numero_region")
+
+
+chilemapas::censo_2017_comunas %>% 
+  mutate(region = str_extract(codigo_comuna, "..")) %>% 
+  summarise(pop = sum(poblacion), .by = c(region, sexo)) %>% 
+  ggplot() + 
+  aes(codigo_region = region, fill = pop/100000) +
+  geom_region(linewidth = .01) + 
+  facet_wrap(~sexo) + 
+  scale_fill_viridis_b(transform = "log") + 
+  stamp_region_outline(color = "red", 
+                       keep_id = "05")
+```
+
+![](man/figures/README-unnamed-chunk-5-2.png)<!-- -->
+
+``` r
+
+
+library(tmap)
+
+data(World)
+
+World %>% 
+  select(country_name = name,
+         iso3c = iso_a3) %>% 
+  options(sf2stat.ref_data = .,
+          sf2stat.required_aes = "country_name|iso3c")
+  
+tidyr::world_bank_pop %>% 
+  filter(indicator == "SP.POP.GROW") %>% 
+  ggplot() + 
+  aes(iso3c = country) + 
+  geom_region() + 
+  aes(fill = `2000`) + 
+  scale_fill_viridis_c() + 
+  labs(title = "Population Growth, 2000")
+```
+
+![](man/figures/README-unnamed-chunk-5-3.png)<!-- -->
+
+``` r
+
+
+data("NLD_prov")
+
+
+NLD_prov %>% 
+  select(prov_name = name, prov_code = code) %>% 
+  options(sf2stat.ref_data = ., 
+          sf2stat.required_aes = "prov_code|prov_name")
+
+NLD_prov %>% 
+  sf::st_drop_geometry() %>% 
+  ggplot() + 
+  aes(prov_code = code) + 
+  geom_region() + 
+  aes(fill = population/100000) + 
+  geom_region_text(check_overlap = T,
+                   size = 2, 
+                   color = "whitesmoke")
+```
+
+![](man/figures/README-unnamed-chunk-5-4.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  aes(label = round(population/100000, 3))
+```
+
+![](man/figures/README-unnamed-chunk-5-5.png)<!-- -->
+
+``` r
+
+
+usmapdata::us_map() %>% 
+  select(state_name = full, state_abb = abbr, fips) %>% 
+  options(sf2stat.ref_data = .,
+          sf2stat.required_aes = "state_name|state_abb|fips")
+
+
+us_rent_income  %>% 
+  ggplot() + 
+  aes(state_name = NAME) + 
+  geom_region()
+```
+
+![](man/figures/README-unnamed-chunk-5-6.png)<!-- -->
+
+``` r
+
+usmapdata::us_map() %>% 
+  ggplot() + 
+  geom_sf()
+```
+
+![](man/figures/README-unnamed-chunk-5-7.png)<!-- -->
 
 # sf2stat Proposed usage
 
