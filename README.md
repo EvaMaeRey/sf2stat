@@ -204,7 +204,9 @@ qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf",
 stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref), 
                         id_index = 1, 
                         required_aes = getOption("sf2stat.required_aes", "fips|county_name"),
-                        geom = GeomSf,  ...){
+                        geom = GeomSf, ...){
+  
+  # if(!is.null(stamp)){if(stamp){required_aes = c()}}
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
@@ -225,7 +227,7 @@ GeomOutline <- ggproto("GeomOutline", GeomSf,
                                                        aes(fill = NA, 
                                                            color = "black"))))
 
-geom_region_sf <- function(...){stat_region(geom = GeomSf,...)}
+geom_region_sf <- function(...){stat_region(geom = GeomSf, ...)}
 geom_region <- geom_region_sf   # convenience short name
 geom_region_outline <- function(...){stat_region(geom = GeomOutline, ...)}
 geom_region_label <- function(...){stat_region(geom = GeomLabel,...)}
@@ -309,6 +311,8 @@ tidyr::world_bank_pop %>%
 ``` r
 
 
+
+
 data("NLD_prov")
 
 
@@ -342,24 +346,35 @@ last_plot() +
 
 
 usmapdata::us_map() %>% 
-  select(state_name = full, state_abb = abbr, fips) %>% 
+  select(state_name = full, state_abb = abbr, fips,
+         geometry = geom) %>% 
   options(sf2stat.ref_data = .,
           sf2stat.required_aes = "state_name|state_abb|fips")
 
 
-us_rent_income  %>% 
+USArrests  %>% 
+  rownames_to_column("state") %>% 
   ggplot() + 
-  aes(state_name = NAME) + 
-  geom_region()
+  aes(state_name = state) + 
+  geom_region(alpha = .75) + 
+  aes(fill = UrbanPop) + 
+  scale_fill_viridis_c()
 ```
 
 ![](man/figures/README-unnamed-chunk-5-6.png)<!-- -->
 
 ``` r
+  
+ggseg::aseg$data %>% 
+  # filter(!is.na(label)) %>% 
+  select(region_id = label) %>% 
+  options(sf2stat.ref_data = ., 
+          sf2stat.required_aes = "region_id")
 
-usmapdata::us_map() %>% 
-  ggplot() + 
-  geom_sf()
+ggplot() + 
+  aes(region_id = 1) + 
+  stamp_region() + 
+  stamp_region(keep_id = c("Right-Amygdala", "Left-Amygdala"), fill = "darkred")
 ```
 
 ![](man/figures/README-unnamed-chunk-5-7.png)<!-- -->
