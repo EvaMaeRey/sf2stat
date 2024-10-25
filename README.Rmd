@@ -262,18 +262,25 @@ chilemapas::censo_2017_comunas %>%
 last_plot() + 
   geom_region_textrepel()
 
-
-
+library(ggstats)
+chilemapas::censo_2017_comunas %>% 
+  mutate(region = str_extract(codigo_comuna, "..")) %>% 
+  summarise(pop = sum(poblacion), .by = c(region, sexo)) %>% 
+  ggplot() +
+  aes(fill = sexo, y = region, weight = pop) + 
+  ggstats::geom_pyramid(fill = "grey") +
+  ggstats::geom_pyramid()
 ```
 
 ```{r}
 library(tidyverse)
 
-set_region_country_rnaturalearth <- function(){
+set_region_country_rnaturalearth <- function(scale = "small"){
 
 rnaturalearth::ne_countries(
-  scale = "large", returnclass = "sf") |> 
+  scale = scale, returnclass = "sf") |> 
   select(country_name = sovereignt, iso3c = iso_a3) |>
+  mutate(country_name = ifelse(country_name == "United States of America", "United States", country_name)) |>
   options(sf2stat.ref_data = _,
           sf2stat.required_aes = "country_name|iso3c") 
   
@@ -284,7 +291,7 @@ rnaturalearth::ne_countries(
 ```{r}
 
 rnaturalearth::ne_countries(
-  scale = "large", returnclass = "sf") |> 
+  scale = "small", returnclass = "sf") |> 
   select(country_name = sovereignt, iso3c = iso_a3) |>
   ggplot() + 
   geom_sf() 
@@ -293,38 +300,45 @@ set_region_country_rnaturalearth()
 
 tidyr::world_bank_pop %>% 
   filter(indicator == "SP.POP.GROW") %>% 
+  mutate(pop_growth = `2000`) %>% 
   ggplot() + 
   aes(iso3c = country) + 
   geom_region() + 
-  aes(fill = `2000`) + 
+  aes(fill = pop_growth) + 
   scale_fill_viridis_c() + 
-  labs(title = "Population Growth, 2000")
+  labs(title = "Population Growth, 2000") +
+  geom_region_outline(data = . %>% filter(pop_growth<0), 
+                      color = "red")
+```
 
+
+
+```{r}
 orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
 
+set_region_country_rnaturalearth(scale = "large")  
+
 ggplot() + 
-  aes(iso3c = 1) + 
-  stamp_region(keep_id = c("United States of America", "Canada")) +
-  geom_point(aes(y = begin_latitude,
-                 x = begin_longitude, 
-                 iso3c = NULL, 
-                 fill = NULL),
-             data = orcas,
-             size = 2, show.legend = F,
+  stamp_region(aes(iso3c = 1), 
+               keep_id = c("United States", "Canada")) +
+  geom_point(data = orcas,
+             mapping = aes(y = begin_latitude,
+                           x = begin_longitude),
+             size = 2, pch = 21,
              fill = "white",
-             color = "black",
-             pch = 21
+             color = "black"
              )  +  
   geom_text(aes(y = begin_latitude,
-                 x = begin_longitude, 
-                 iso3c = NULL, 
-                 fill = NULL,
-                 label = location),
-                 data = orcas,
-                 color = "whitesmoke",
-                 size = .4,
+                x = begin_longitude, 
+                iso3c = NULL, 
+                fill = NULL,
+                label = location),
+                data = orcas,
+                color = "whitesmoke",
+                size = .4,
             check_overlap = T) +
-  coord_sf(crs = "+proj=stere +lat_0=-90", xlim = c(-126, -122), ylim = c(47, 51))
+  coord_sf(crs = "NAD83", xlim = c(-126, -122), ylim = c(47, 51))
+# crs = "+proj=stere +lat_0=-90", 
 
 orcas %>% 
   ggplot() + 
@@ -338,54 +352,47 @@ orcas %>%
              vjust = "outward") ->
 p; p
 
-tidyr::world_bank_pop %>% 
-  filter(indicator == "SP.POP.GROW") %>% 
-  ggplot() + aes(iso3c = country) +
-  stamp_region(keep_id = c("United States of America", "Canada"))
-               
-                
+```
 
-  
+```{r}                
 cia_factbook <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-22/cia_factbook.csv')  
   
+set_region_country_rnaturalearth(scale = "small")  
+
 cia_factbook %>% 
-  mutate(country = ifelse(country == "United States",
-                          "United States of America", country)) %>% 
   ggplot() + 
   aes(country_name = country) + 
-  stamp_region() +
+  stamp_region(drop_id = "Antarctica") +
   geom_region() + 
-  aes(fill = internet_users/population) + 
-  geom_region_text(data = . %>% filter(area > 1000000),
+  aes(fill = internet_users/population)
+
+last_plot() + 
+  geom_region_text(data = . %>% filter(area > 500000),
                    check_overlap = T,
                    size = 2,
                    color = "whitesmoke") + 
-  aes(label = round(100*internet_users/population)|>paste0("%"))
+  aes(label = round(100*internet_users/population)|>paste0("%")) + 
+  labs(title = "Internet usership") + 
+  guides(fill = "none")
 
 ```
 
 ```{r}
-last_plot() + 
-  coord_sf() + 
-  aes(fill = NULL)
 
 nato_names <- c("Albania", "Belgium", "Bulgaria", "Canada", "Croatia", "Czech Republic", "Denmark", "Estonia", "France", "Germany", "Greece", "Hungary",  
-                "Iceland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Turkey", "United Kingdom", "United States of America")  
+                "Iceland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Turkey", "United Kingdom", "United States")  
+
 library(gapminder)  
 gapminder %>%  
   filter(year == 2002) %>%  
   rename(name = country) ->  
 gapminder_2002_prepped  
 
-rnaturalearth::ne_countries(  
-  scale = "medium", returnclass = "sf") |> 
-  select(name, pop_est, 
-         continent, geometry) |> 
-  filter(name %in% nato_names) |> 
-  left_join(gapminder_2002_prepped, by = "name") ->  
-  nato_countries  
-ggplot(data = nato_countries) +  
-  ggplot2::geom_sf()
+gapminder_2002_prepped %>%   
+  ggplot() +  
+  aes(country_name = name) +
+  geom_region(keep_id = nato_names) + 
+  aes(fill = gdpPercap)
   
 ```
 
@@ -496,14 +503,16 @@ ggplot() +
   stamp_region()
 
 
-```
-
-
-
-
 
 
 ```
+
+
+
+
+
+
+```{r}
 ggseg::aseg$data %>% 
   # filter(!is.na(label)) %>% 
   select(region) %>% 

@@ -363,13 +363,28 @@ last_plot() +
 ![](man/figures/README-unnamed-chunk-5-3.png)<!-- -->
 
 ``` r
+
+library(ggstats)
+chilemapas::censo_2017_comunas %>% 
+  mutate(region = str_extract(codigo_comuna, "..")) %>% 
+  summarise(pop = sum(poblacion), .by = c(region, sexo)) %>% 
+  ggplot() +
+  aes(fill = sexo, y = region, weight = pop) + 
+  ggstats::geom_pyramid(fill = "grey") +
+  ggstats::geom_pyramid()
+```
+
+![](man/figures/README-unnamed-chunk-5-4.png)<!-- -->
+
+``` r
 library(tidyverse)
 
-set_region_country_rnaturalearth <- function(){
+set_region_country_rnaturalearth <- function(scale = "small"){
 
 rnaturalearth::ne_countries(
-  scale = "large", returnclass = "sf") |> 
+  scale = scale, returnclass = "sf") |> 
   select(country_name = sovereignt, iso3c = iso_a3) |>
+  mutate(country_name = ifelse(country_name == "United States of America", "United States", country_name)) |>
   options(sf2stat.ref_data = _,
           sf2stat.required_aes = "country_name|iso3c") 
   
@@ -380,7 +395,7 @@ rnaturalearth::ne_countries(
 ``` r
 
 rnaturalearth::ne_countries(
-  scale = "large", returnclass = "sf") |> 
+  scale = "small", returnclass = "sf") |> 
   select(country_name = sovereignt, iso3c = iso_a3) |>
   ggplot() + 
   geom_sf() 
@@ -394,19 +409,24 @@ set_region_country_rnaturalearth()
 
 tidyr::world_bank_pop %>% 
   filter(indicator == "SP.POP.GROW") %>% 
+  mutate(pop_growth = `2000`) %>% 
   ggplot() + 
   aes(iso3c = country) + 
   geom_region() + 
-  aes(fill = `2000`) + 
+  aes(fill = pop_growth) + 
   scale_fill_viridis_c() + 
-  labs(title = "Population Growth, 2000")
+  labs(title = "Population Growth, 2000") +
+  geom_region_outline(data = . %>% filter(pop_growth<0), 
+                      color = "red")
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+#> Joining with `by = join_by(iso3c)`
 #> Joining with `by = join_by(iso3c)`
 ```
 
 ![](man/figures/README-unnamed-chunk-7-2.png)<!-- -->
 
 ``` r
-
 orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
 #> Rows: 775 Columns: 19
 #> ── Column specification ────────────────────────────────────────────────────────
@@ -422,36 +442,36 @@ orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidy
 
 ``` r
 
+set_region_country_rnaturalearth(scale = "large")  
+
 ggplot() + 
-  aes(iso3c = 1) + 
-  stamp_region(keep_id = c("United States of America", "Canada")) +
-  geom_point(aes(y = begin_latitude,
-                 x = begin_longitude, 
-                 iso3c = NULL, 
-                 fill = NULL),
-             data = orcas,
-             size = 2, show.legend = F,
+  stamp_region(aes(iso3c = 1), 
+               keep_id = c("United States", "Canada")) +
+  geom_point(data = orcas,
+             mapping = aes(y = begin_latitude,
+                           x = begin_longitude),
+             size = 2, pch = 21,
              fill = "white",
-             color = "black",
-             pch = 21
+             color = "black"
              )  +  
   geom_text(aes(y = begin_latitude,
-                 x = begin_longitude, 
-                 iso3c = NULL, 
-                 fill = NULL,
-                 label = location),
-                 data = orcas,
-                 color = "whitesmoke",
-                 size = .4,
+                x = begin_longitude, 
+                iso3c = NULL, 
+                fill = NULL,
+                label = location),
+                data = orcas,
+                color = "whitesmoke",
+                size = .4,
             check_overlap = T) +
-  coord_sf(crs = "+proj=stere +lat_0=-90", xlim = c(-126, -122), ylim = c(47, 51))
+  coord_sf(crs = "NAD83", xlim = c(-126, -122), ylim = c(47, 51))
 #> Coordinate system already present. Adding new coordinate system, which will
 #> replace the existing one.
 ```
 
-![](man/figures/README-unnamed-chunk-7-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
+# crs = "+proj=stere +lat_0=-90", 
 
 orcas %>% 
   ggplot() + 
@@ -466,23 +486,9 @@ orcas %>%
 p; p
 ```
 
-![](man/figures/README-unnamed-chunk-7-4.png)<!-- -->
+![](man/figures/README-unnamed-chunk-8-2.png)<!-- -->
 
 ``` r
-
-tidyr::world_bank_pop %>% 
-  filter(indicator == "SP.POP.GROW") %>% 
-  ggplot() + aes(iso3c = country) +
-  stamp_region(keep_id = c("United States of America", "Canada"))
-```
-
-![](man/figures/README-unnamed-chunk-7-5.png)<!-- -->
-
-``` r
-               
-                
-
-  
 cia_factbook <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-22/cia_factbook.csv')  
 #> Rows: 259 Columns: 11
 #> ── Column specification ────────────────────────────────────────────────────────
@@ -496,63 +502,59 @@ cia_factbook <- readr::read_csv('https://raw.githubusercontent.com/rfordatascien
 
 ``` r
   
+set_region_country_rnaturalearth(scale = "small")  
+
 cia_factbook %>% 
-  mutate(country = ifelse(country == "United States",
-                          "United States of America", country)) %>% 
   ggplot() + 
   aes(country_name = country) + 
-  stamp_region() +
+  stamp_region(drop_id = "Antarctica") +
   geom_region() + 
-  aes(fill = internet_users/population) + 
-  geom_region_text(data = . %>% filter(area > 1000000),
+  aes(fill = internet_users/population)
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+#> Joining with `by = join_by(country_name)`
+```
+
+![](man/figures/README-unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  geom_region_text(data = . %>% filter(area > 500000),
                    check_overlap = T,
                    size = 2,
                    color = "whitesmoke") + 
-  aes(label = round(100*internet_users/population)|>paste0("%"))
-#> Coordinate system already present. Adding new coordinate system, which will
-#> replace the existing one.
-#> Coordinate system already present. Adding new coordinate system, which will
-#> replace the existing one.
-#> Joining with `by = join_by(country_name)`
-#> Joining with `by = join_by(country_name)`
-```
-
-![](man/figures/README-unnamed-chunk-7-6.png)<!-- -->
-
-``` r
-last_plot() + 
-  coord_sf() + 
-  aes(fill = NULL)
+  aes(label = round(100*internet_users/population)|>paste0("%")) + 
+  labs(title = "Internet usership") + 
+  guides(fill = "none")
 #> Coordinate system already present. Adding new coordinate system, which will
 #> replace the existing one.
 #> Joining with `by = join_by(country_name)`
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-9-2.png)<!-- -->
 
 ``` r
 
 nato_names <- c("Albania", "Belgium", "Bulgaria", "Canada", "Croatia", "Czech Republic", "Denmark", "Estonia", "France", "Germany", "Greece", "Hungary",  
-                "Iceland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Turkey", "United Kingdom", "United States of America")  
+                "Iceland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Turkey", "United Kingdom", "United States")  
+
 library(gapminder)  
 gapminder %>%  
   filter(year == 2002) %>%  
   rename(name = country) ->  
 gapminder_2002_prepped  
 
-rnaturalearth::ne_countries(  
-  scale = "medium", returnclass = "sf") |> 
-  select(name, pop_est, 
-         continent, geometry) |> 
-  filter(name %in% nato_names) |> 
-  left_join(gapminder_2002_prepped, by = "name") ->  
-  nato_countries  
-ggplot(data = nato_countries) +  
-  ggplot2::geom_sf()
+gapminder_2002_prepped %>%   
+  ggplot() +  
+  aes(country_name = name) +
+  geom_region(keep_id = nato_names) + 
+  aes(fill = gdpPercap)
+#> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-8-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 country_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-24/country_results_df.csv')
@@ -591,7 +593,7 @@ country_results_df %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-9-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 
@@ -602,7 +604,7 @@ last_plot() +
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-9-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-11-2.png)<!-- -->
 
 ``` r
   
@@ -614,7 +616,7 @@ ggplot2::theme_set
 #>     ggplot_global$theme_current <- new
 #>     invisible(old)
 #> }
-#> <bytecode: 0x7fdcbe45ab70>
+#> <bytecode: 0x7fe0d2ee7458>
 #> <environment: namespace:ggplot2>
 ```
 
@@ -678,7 +680,7 @@ NLD_prov %>%
 #> old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-10-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
 
@@ -694,7 +696,7 @@ last_plot() +
 #> Joining with `by = join_by(prov_code)`old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-10-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-12-2.png)<!-- -->
 
 ``` r
 
@@ -729,7 +731,7 @@ USArrests  %>%
 #> Joining with `by = join_by(state_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-10-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-12-3.png)<!-- -->
 
 ``` r
 
@@ -762,22 +764,29 @@ ggplot() +
   stamp_region()
 ```
 
-![](man/figures/README-unnamed-chunk-10-4.png)<!-- -->
+![](man/figures/README-unnamed-chunk-12-4.png)<!-- -->
 
-    ggseg::aseg$data %>% 
-      # filter(!is.na(label)) %>% 
-      select(region) %>% 
-      options(sf2stat.ref_data = ., 
-              sf2stat.required_aes = "region")
+``` r
+ggseg::aseg$data %>% 
+  # filter(!is.na(label)) %>% 
+  select(region) %>% 
+  options(sf2stat.ref_data = ., 
+          sf2stat.required_aes = "region")
 
-    ggplot() + 
-      aes(region = 1) +
-      stamp_region() + 
-      stamp_region(keep_id = "amygdala", 
-                   fill = "orange") + 
-      stamp_region(keep_id = "hippocampus",
-                   fill = "cadetblue")
-      
+ggplot() + 
+  aes(region = 1) +
+  stamp_region() + 
+  stamp_region(keep_id = "amygdala", 
+               fill = "orange") + 
+  stamp_region(keep_id = "hippocampus",
+               fill = "cadetblue")
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+```
+
+![](man/figures/README-unnamed-chunk-13-1.png)<!-- -->
 
 # sf2stat Proposed usage
 
@@ -849,7 +858,7 @@ read.csv("nc-midterms.csv") |>
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-12-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-15-1.png)<!-- -->
 
 We see that there are actually undiscovered counties, as exact name
 matching can be a little dicy. Using fips which would probably perform
@@ -867,7 +876,7 @@ read.csv("nc-midterms.csv") |>
   stamp_county(fill = 'darkgrey')
 ```
 
-![](man/figures/README-unnamed-chunk-13-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-16-1.png)<!-- -->
 
 Then we use geom_county(), which reflects your data and the success of
 the underlying join process.
@@ -880,7 +889,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-14-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-17-1.png)<!-- -->
 
 Then look at population choropleth (fill = n) and highlight Mecklenburg
 with convenience annotation layer ‘stamp_county’
@@ -892,7 +901,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-15-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-18-1.png)<!-- -->
 
 highlight at county of interest…
 
@@ -906,7 +915,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-16-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-19-1.png)<!-- -->
 
 We can add a text layer defaults to ref_data column 1 (id_index
 setting)…
@@ -922,7 +931,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-17-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-20-1.png)<!-- -->
 
 We can look at another variable…
 
@@ -933,7 +942,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-18-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-21-1.png)<!-- -->
 
 And another…
 
@@ -944,7 +953,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-19-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-22-1.png)<!-- -->
 
 And look at some values for that variable
 
@@ -955,7 +964,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-20-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-23-1.png)<!-- -->
 
 ``` r
 knitr::knit_exit()
