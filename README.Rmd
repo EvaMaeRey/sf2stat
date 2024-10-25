@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   eval = T,
   warning = F,
-  message = F
+  message = T
 )
 
 library(tidyverse)
@@ -187,25 +187,39 @@ GeomOutline <- ggproto("GeomOutline", GeomSf,
                                                        aes(fill = NA, 
                                                            color = "black"))))
 
-geom_region_sf <- function(...){stat_region(geom = GeomSf, ...)}
+geom_region_sf <- function(mapping = NULL, ...){stat_region(geom = GeomSf, mapping = mapping, ...)}
 geom_region <- geom_region_sf   # convenience short name
-geom_region_outline <- function(...){stat_region(geom = GeomOutline, ...)}
-geom_region_label <- function(...){stat_region(geom = GeomLabel,...)}
-geom_region_text <- function(...){stat_region(geom = GeomText, ...)}
+geom_region_outline <- function(mapping = NULL, ...){stat_region(geom = GeomOutline,mapping = mapping, ...)}
+geom_region_label <- function(mapping = NULL, ...){stat_region(geom = GeomLabel,mapping = mapping,...)}
+geom_region_text <- function(mapping = NULL, ...){stat_region(geom = GeomText, mapping = mapping,...)}
+geom_region_textrepel <- function(mapping = NULL, ...){stat_region(geom = ggrepel::GeomTextRepel,mapping = mapping, ...)}
 
-stamp_region_sf <- function(...){geom_region_sf(stamp = T, ...)}
+
+stamp_region_sf <- function(...){geom_region_sf(stamp = T, required_aes = Stat$required_aes, ...)}
 stamp_region <- stamp_region_sf
-stamp_region_outline <- function(...){geom_region_outline(stamp = T, ...)}
-stamp_region_label <- function(...){geom_region_label(stamp = T, ...)}
-stamp_region_text <- function(...){geom_region_text(stamp = T, ...)}
+stamp_region_outline <- function(...){geom_region_outline(stamp = T, required_aes = Stat$required_aes, ...)}
+stamp_region_label <- function(...){geom_region_label(stamp = T, required_aes = Stat$required_aes, ...)}
+stamp_region_text <- function(...){geom_region_text(stamp = T, required_aes = Stat$required_aes, ...)}
 
 
+set_region_sf_nc_counties <- function(){
+
+nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
+  select(county_name = NAME, fips = FIPS)
 
 options(sf2stat.ref_data = nc_ref,
         sf2stat.required_aes = "fips|county_name")
 
-# north carolina counties....
-read.csv("nc-midterms.csv") |>
+message("required aes is 'fips|county_name'")
+
+}
+
+nc_midterms <- read.csv("nc-midterms.csv")
+head(nc_midterms)
+
+set_region_sf_nc_counties()
+
+nc_midterms |>
   ggplot() + 
   aes(county_name = str_to_title(desc_county)) + 
   stamp_region(fill = 'darkgrey') + 
@@ -218,34 +232,65 @@ read.csv("nc-midterms.csv") |>
   geom_region_text(check_overlap = T,
                    color = "whitesmoke")
 
-chilemapas::generar_regiones() %>% 
-  mutate(numero_region = as.numeric(codigo_region)) %>% 
-  options(sf2stat.ref_data = .,
-          sf2stat.required_aes = "codigo_region|numero_region")
+set_region_region_chilemapas <- function(){
 
+chilemapas::generar_regiones() %>% 
+  mutate(region_numerico = as.numeric(codigo_region)) %>%
+  select(region_codigo = codigo_region,
+         region_numerico) %>% 
+  options(sf2stat.ref_data = .,
+          sf2stat.required_aes = "region_codigo|region_numerico")
+  
+  "ggregion region is set to 'region' and the required aes are 'region_numerico|region_codigo'"
+  
+}
+  
+
+set_region_region_chilemapas()
 
 chilemapas::censo_2017_comunas %>% 
   mutate(region = str_extract(codigo_comuna, "..")) %>% 
   summarise(pop = sum(poblacion), .by = c(region, sexo)) %>% 
   ggplot() + 
-  aes(codigo_region = region, fill = pop/100000) +
-  geom_region(linewidth = .01) + 
+  aes(region_codigo = region, fill = pop/100000) +
+  geom_region(linewidth = .01, color = "white") + 
   facet_wrap(~sexo) + 
   scale_fill_viridis_b(transform = "log") + 
   stamp_region_outline(color = "red", 
                        keep_id = "05")
 
+last_plot() + 
+  geom_region_textrepel()
 
-library(tmap)
 
-data(World)
 
-World %>% 
-  select(country_name = name,
-         iso3c = iso_a3) %>% 
-  options(sf2stat.ref_data = .,
-          sf2stat.required_aes = "country_name|iso3c")
+```
+
+```{r}
+library(tidyverse)
+
+set_region_country_rnaturalearth <- function(){
+
+rnaturalearth::ne_countries(
+  scale = "large", returnclass = "sf") |> 
+  select(country_name = sovereignt, iso3c = iso_a3) |>
+  options(sf2stat.ref_data = _,
+          sf2stat.required_aes = "country_name|iso3c") 
   
+}
+  
+```
+
+```{r}
+
+rnaturalearth::ne_countries(
+  scale = "large", returnclass = "sf") |> 
+  select(country_name = sovereignt, iso3c = iso_a3) |>
+  ggplot() + 
+  geom_sf() 
+  
+set_region_country_rnaturalearth()  
+
 tidyr::world_bank_pop %>% 
   filter(indicator == "SP.POP.GROW") %>% 
   ggplot() + 
@@ -255,16 +300,138 @@ tidyr::world_bank_pop %>%
   scale_fill_viridis_c() + 
   labs(title = "Population Growth, 2000")
 
+orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
+
+ggplot() + 
+  aes(iso3c = 1) + 
+  stamp_region(keep_id = c("United States of America", "Canada")) +
+  geom_point(aes(y = begin_latitude,
+                 x = begin_longitude, 
+                 iso3c = NULL, 
+                 fill = NULL),
+             data = orcas,
+             size = 2, show.legend = F,
+             fill = "white",
+             color = "black",
+             pch = 21
+             )  +  
+  geom_text(aes(y = begin_latitude,
+                 x = begin_longitude, 
+                 iso3c = NULL, 
+                 fill = NULL,
+                 label = location),
+                 data = orcas,
+                 color = "whitesmoke",
+                 size = .4,
+            check_overlap = T) +
+  coord_sf(crs = "+proj=stere +lat_0=-90", xlim = c(-126, -122), ylim = c(47, 51))
+
+orcas %>% 
+  ggplot() + 
+  aes(y = begin_latitude,
+      x = begin_longitude, 
+      label = location) + 
+  geom_point() + 
+  geom_text(check_overlap = T, 
+             fill = NA,
+             hjust = "outward",
+             vjust = "outward") ->
+p; p
+
+tidyr::world_bank_pop %>% 
+  filter(indicator == "SP.POP.GROW") %>% 
+  ggplot() + aes(iso3c = country) +
+  stamp_region(keep_id = c("United States of America", "Canada"))
+               
+                
+
+  
+cia_factbook <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-22/cia_factbook.csv')  
+  
+cia_factbook %>% 
+  mutate(country = ifelse(country == "United States",
+                          "United States of America", country)) %>% 
+  ggplot() + 
+  aes(country_name = country) + 
+  stamp_region() +
+  geom_region() + 
+  aes(fill = internet_users/population) + 
+  geom_region_text(data = . %>% filter(area > 1000000),
+                   check_overlap = T,
+                   size = 2,
+                   color = "whitesmoke") + 
+  aes(label = round(100*internet_users/population)|>paste0("%"))
+
+```
+
+```{r}
+last_plot() + 
+  coord_sf() + 
+  aes(fill = NULL)
+
+nato_names <- c("Albania", "Belgium", "Bulgaria", "Canada", "Croatia", "Czech Republic", "Denmark", "Estonia", "France", "Germany", "Greece", "Hungary",  
+                "Iceland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Turkey", "United Kingdom", "United States of America")  
+library(gapminder)  
+gapminder %>%  
+  filter(year == 2002) %>%  
+  rename(name = country) ->  
+gapminder_2002_prepped  
+
+rnaturalearth::ne_countries(  
+  scale = "medium", returnclass = "sf") |> 
+  select(name, pop_est, 
+         continent, geometry) |> 
+  filter(name %in% nato_names) |> 
+  left_join(gapminder_2002_prepped, by = "name") ->  
+  nato_countries  
+ggplot(data = nato_countries) +  
+  ggplot2::geom_sf()
+  
+```
 
 
 
+```{r}
+country_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-24/country_results_df.csv')
+
+country_results_df %>% 
+  filter(year == 2024) %>% 
+  mutate(country = ifelse(country == "People's Republic of China", "China", country)) %>% 
+  mutate(points = p1+p2+p3+p4+p5+p6) %>% 
+  ggplot() + 
+  aes(country_name = country) + 
+  stamp_region(drop_id = "Antarctica") + 
+  geom_region() + 
+  aes(fill = points) + 
+  aes(label = paste0("#", rank(-points),"\n",
+                     country, "\n", points,"\n")) + 
+  geom_region_text(size = 1.5,
+                   lineheight = .7,
+                   check_overlap = T)
+
+last_plot() + 
+  aes(fill = (p1+p2+p3+p4+p5+p6)/team_size_all) + 
+  aes(label = round((p1+p2+p3+p4+p5+p6)/team_size_all, 1))
+  
+ggplot2::theme_set
+```  
+
+```{r}
+library(tmap)
 data("NLD_prov")
 
+set_region_province_netherland_tmap <- function(){
 
 NLD_prov %>% 
   select(prov_name = name, prov_code = code) %>% 
   options(sf2stat.ref_data = ., 
           sf2stat.required_aes = "prov_code|prov_name")
+  
+  message("Region has been set to netherland provinces\n
+          required aes 'prov_code|prov_name")
+}
+
+set_region_province_netherland_tmap()
 
 NLD_prov %>% 
   sf::st_drop_geometry() %>% 
@@ -279,33 +446,77 @@ NLD_prov %>%
 last_plot() + 
   aes(label = round(population/100000, 3))
 
-
-usmapdata::us_map() %>% 
+set_region_state_usmapdata <- function(){
+  
+  required_aes <- "state_name|state_abb|fips"
+  
+usmapdata::us_map() |> 
   select(state_name = full, state_abb = abbr, fips,
-         geometry = geom) %>% 
-  options(sf2stat.ref_data = .,
+         geometry = geom) |>
+  options(sf2stat.ref_data = _,
           sf2stat.required_aes = "state_name|state_abb|fips")
+  
+  message("required aes are 'state_name|state_abb|fips'")
+  
+}
 
+
+set_region_state_usmapdata()
 
 USArrests  %>% 
-  rownames_to_column("state") %>% 
+  rownames_to_column("state") |>
   ggplot() + 
   aes(state_name = state) + 
   geom_region(alpha = .75) + 
   aes(fill = UrbanPop) + 
   scale_fill_viridis_c()
+
+
+set_region_county_usmapdata <- function(){
   
-ggseg::aseg$data %>% 
-  # filter(!is.na(label)) %>% 
-  select(region_id = label) %>% 
-  options(sf2stat.ref_data = ., 
-          sf2stat.required_aes = "region_id")
+  required_aes <- "state_name|state_abb|fips|county_name"
+  
+usmapdata::us_map("county" ) |> 
+  select(state_name = full, 
+         state_abb = abbr, 
+         fips,     
+         county_name = county,
+         geometry = geom) |>
+  options(sf2stat.ref_data = _,
+          sf2stat.required_aes = "state_name|state_abb|fips")
+  
+  message("required aes are 'state_name|state_abb|fips|county_name'")
+  
+}
+
+set_region_county_usmapdata()
 
 ggplot() + 
-  aes(region_id = 1) + 
+  aes(fips = 1) + 
+  stamp_region()
+
+
+```
+
+
+
+
+
+
+```
+ggseg::aseg$data %>% 
+  # filter(!is.na(label)) %>% 
+  select(region) %>% 
+  options(sf2stat.ref_data = ., 
+          sf2stat.required_aes = "region")
+
+ggplot() + 
+  aes(region = 1) +
   stamp_region() + 
-  stamp_region(keep_id = c("Right-Amygdala", "Left-Amygdala"), 
-               fill = "darkred")
+  stamp_region(keep_id = "amygdala", 
+               fill = "orange") + 
+  stamp_region(keep_id = "hippocampus",
+               fill = "cadetblue")
   
 ```
 
