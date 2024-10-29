@@ -1,7 +1,7 @@
 ---
 output: 
   github_document:
-    toc: FALSE
+    toc: TRUE
 ---
 
 <!-- badges: start -->
@@ -245,7 +245,40 @@ stamp_subregion <- stamp_subregion_sf
 stamp_subregion_outline <- function(...){geom_subregion_outline(stamp = T, required_aes = Stat$required_aes, ...)}
 stamp_subregion_label <- function(...){geom_subregion_label(stamp = T, required_aes = Stat$required_aes, ...)}
 stamp_subregion_text <- function(...){geom_subregion_text(stamp = T, required_aes = Stat$required_aes, ...)}
+```
 
+
+```{r}
+set_region <- function(ref_data, required_aes = NULL, region, level = "region", return_region_names = F){
+  
+  if(is.null(required_aes)){
+    
+    names_ref_data <- names(ref_data)
+    required_aes <- paste(names_ref_data[names_ref_data != "geometry"],
+                          collapse = "|")
+    
+  }
+  
+  if(level == "region"){
+options(sf2stat.ref_data = ref_data,
+        sf2stat.required_aes = required_aes)
+
+message(paste0("Region is", region, "\nRequired aes: '", required_aes, "'"))
+  }  
+  
+  if(level == "subregion"){
+options(sf2stat.ref_data_subregion = ref_data,
+        sf2stat.required_aes_subregion = required_aes)
+
+message(paste0("Subregion is ", region, "\nRequired aes: '", required_aes, "'"))
+
+  }  
+
+if(return_region_names){
+  ref_data[,1]
+}
+
+}
 
 
 
@@ -259,15 +292,11 @@ https://github.com/ipeaGIT/geobr
 ## North Carolina counties
 
 ```{r}
-set_region_sf_nc_counties <- function(){
+set_region_sf_nc_counties <- function(return_region_names = F, region = "county"){
 
-nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
-  select(county_name = NAME, fips = FIPS)
-
-options(sf2stat.ref_data = nc_ref,
-        sf2stat.required_aes = "fips|county_name")
-
-message("required aes is 'fips|county_name'")
+sf::st_read(system.file("shape/nc.shp", package="sf")) |>
+  select(county_name = NAME, fips = FIPS) |>
+  set_region(region = region, return_region_names = return_region_names)
 
 }
 
@@ -294,20 +323,18 @@ nc_midterms |>
 ## Chile regiones
 
 ```{r}
-set_region_region_chilemapas <- function(){
+set_region_region_chilemapas <- function(return_region_names = F){
 
 chilemapas::generar_regiones() %>% 
   mutate(region_numerico = as.numeric(codigo_region)) %>%
   select(region_codigo = codigo_region,
-         region_numerico) %>% 
-  options(sf2stat.ref_data = .,
-          sf2stat.required_aes = "region_codigo|region_numerico")
-  
-  "ggregion region is set to 'region' and the required aes are 'region_numerico|region_codigo'"
+         region_numerico)  |>
+  set_region(region = "region", return_region_names = return_region_names)
   
 }
-  
+```  
 
+```{r}
 set_region_region_chilemapas()
 
 chilemapas::censo_2017_comunas %>% 
@@ -323,7 +350,9 @@ chilemapas::censo_2017_comunas %>%
 
 last_plot() + 
   geom_region_textrepel()
+```
 
+```{r}
 library(ggstats)
 chilemapas::censo_2017_comunas %>% 
   mutate(region = str_extract(codigo_comuna, "..")) %>% 
@@ -351,18 +380,20 @@ chilemapas::censo_2017_comunas %>%
 ```{r}
 library(tidyverse)
 
-set_region_country_rnaturalearth <- function(scale = "small"){
+set_region_country_rnaturalearth <- function(scale = "small", return_region_names = F){
 
 rnaturalearth::ne_countries(
   scale = scale, returnclass = "sf") |> 
   select(country_name = sovereignt, iso3c = iso_a3) |>
   mutate(country_name = ifelse(country_name == "United States of America", "United States", country_name)) |>
   mutate(iso3c = ifelse(country_name == "France", "FRA", iso3c)) |>
-  options(sf2stat.ref_data = _,
-          sf2stat.required_aes = "country_name|iso3c") 
+  set_region(region = "country", return_region_names = return_region_names)
   
 }
+```
 
+
+```{r}
 set_region_country_rnaturalearth()
 
 ggplot() + 
@@ -374,7 +405,11 @@ ggplot() +
                            "Uganda", "Germany", "Denmark",
                            "Sweden"), fill = "midnightblue") +
   labs(title = "extenders tuning in ...")
-  
+```
+
+
+```{r}
+set_region_country_rnaturalearth()
 
 heritage <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-02-06/heritage.csv')
 
@@ -385,7 +420,10 @@ heritage %>%
   geom_region() + 
   aes(fill = n_awards) + 
   facet_wrap(~year)
+```
 
+```{r}
+set_region_country_rnaturalearth()
 
 worlds_fairs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-08-13/worlds_fairs.csv')
 
@@ -394,13 +432,18 @@ worlds_fairs %>%
   ggplot() + 
   aes(country_name = country, fill = n) + 
   stamp_region(drop_id = "Antarctica") +
-  geom_region()
+  geom_region() +
+  labs(title = "number of World Fairs, worlds_fairs.csv")
+```
 
+```{r}
+set_region_country_rnaturalearth()
 
 stackoverflow_survey_single_response <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-03/stackoverflow_survey_single_response.csv')
 
 stackoverflow_survey_single_response %>%
-  mutate(iso3c = countrycode::countrycode(country, "country.name", "iso3c")) %>% 
+  mutate(iso3c = 
+           countrycode::countrycode(country, "country.name", "iso3c")) %>% 
   count(iso3c, r_used) %>% 
   filter(!is.na(r_used)) %>% 
   ggplot() + 
@@ -418,11 +461,11 @@ stackoverflow_survey_single_response %>%
                    check_overlap = T,
                    size = 2)
 
-
+library(countrycode)
 stackoverflow_survey_single_response %>%
-  mutate(iso3c = countrycode::countrycode(country, "country.name", "iso3c"))%>% 
+  mutate(iso3c = countrycode(country, "country.name", "iso3c")) %>% 
   filter(!is.na(r_used)) %>% 
-  summarise(r_percent = 100*sum(r_used)/n(), 
+  summarise(r_percent = 100 * sum(r_used)/n(), 
             total_responding = n(),
             .by = iso3c) %>% 
   filter(total_responding > 10) %>% 
@@ -446,19 +489,30 @@ eclipse_total_2024 %>%
   aes(country_name = 1) + 
   stamp_region(keep_id = "United States") +
   geom_point(aes(y = lat, x = lon, color = eclipse_1))
+```
 
+
+```{r}
+set_region_country_rnaturalearth()
 
 outer_space_objects <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-23/outer_space_objects.csv')
 
 outer_space_objects |>
   summarise(num_objects = sum(num_objects), .by = Code) |>
   ggplot() + 
-  aes(iso3c = Code, fill = num_objects) +
+  aes(iso3c = Code, 
+      fill = num_objects) +
   stamp_region() +
   geom_region() +
   scale_fill_viridis_c(transform = "log",
-                       breaks = 10^(0:4)) 
-  
+                       breaks = 10^(0:4)) + 
+  labs(title = "Number of outerspace objects in outer_space_objects.csv")
+```
+
+
+```{r}
+set_region_country_rnaturalearth()
+ 
 
 wwbi_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-30/wwbi_data.csv')
 wwbi_series <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-30/wwbi_series.csv')
@@ -486,7 +540,12 @@ wwbi_data %>%
          filter(indicator_code =="BI.WAG.PRVS.FM.SM") %>%
          pull(indicator_name)) +
   scale_fill_viridis_c(option = "magma") 
-  
+```
+
+
+```{r}
+set_region_country_rnaturalearth()
+   
 
 
 wwbi_country <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-30/wwbi_country.csv')
@@ -500,16 +559,23 @@ wwbi_country %>%
 last_plot() + 
   aes(fill = income_group)
 
+```
 
+
+```{r}
+set_region_country_rnaturalearth()
+ 
 cheeses <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-06-04/cheeses.csv')
 
 cheeses %>% 
   filter(!str_detect(milk, ",")) %>% 
+  distinct(country, milk) %>% 
   ggplot() + 
   aes(country_name = country) + 
   stamp_region() + 
   geom_region(fill = "goldenrod3") +
-  facet_wrap(~milk) 
+  facet_wrap(~milk) + 
+  labs(title = "Cheese Origins! Country and animal in cheeses.csv")
   
 
 
@@ -517,6 +583,9 @@ cheeses %>%
 ```
   
 ```{r}
+set_region_country_rnaturalearth()
+
+
 tidyr::world_bank_pop %>% 
   filter(indicator == "SP.POP.GROW") %>% 
   mutate(pop_growth = `2000`) %>% 
@@ -529,57 +598,38 @@ tidyr::world_bank_pop %>%
   geom_region_outline(data = . %>% filter(pop_growth<0), 
                       color = "red")
 
-last_plot()$data
 ```
 
 
 
 ```{r}
-orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
-
 set_region_country_rnaturalearth(scale = "large")  
 
-ggplot() + 
-  stamp_region(aes(iso3c = 1), 
-               keep_id = c("United States", "Canada")) +
-  geom_point(data = orcas,
-             mapping = aes(y = begin_latitude,
-                           x = begin_longitude),
+orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
+
+orcas |>
+  ggplot() + 
+  geom_point(aes(y = begin_latitude,
+                 x = begin_longitude),
              size = 2, pch = 21,
              fill = "white",
              color = "black"
-             )  +  
-  geom_text(aes(y = begin_latitude,
-                x = begin_longitude, 
-                iso3c = NULL, 
-                fill = NULL,
-                label = location),
-                data = orcas,
-                color = "whitesmoke",
-                size = .4,
-            check_overlap = T) +
-  coord_sf(crs = "NAD83", xlim = c(-126, -122), ylim = c(47, 51))
-# crs = "+proj=stere +lat_0=-90", 
-
-orcas %>% 
-  ggplot() + 
-  aes(y = begin_latitude,
-      x = begin_longitude, 
-      label = location) + 
-  geom_point() + 
-  geom_text(check_overlap = T, 
-             fill = NA,
-             hjust = "outward",
-             vjust = "outward") ->
-p; p
+             ) +
+  stamp_region_outline(keep_id = c("United States", "Canada")) +
+  coord_sf(crs = "NAD83", 
+           xlim = c(min(orcas$begin_longitude, na.rm = T), 
+                     max(orcas$begin_longitude, na.rm = T)), 
+           ylim = c(min(orcas$begin_latitude, na.rm = T), 
+                     max(orcas$begin_latitude, na.rm = T))) +
+  labs(title = "Orcas begin latitude and longitude in orcas.csv ")
 
 ```
 
 ```{r}                
+set_region_country_rnaturalearth()  
+
 cia_factbook <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-22/cia_factbook.csv')  
   
-set_region_country_rnaturalearth(scale = "small")  
-
 cia_factbook %>% 
   ggplot() + 
   aes(country_name = country) + 
@@ -599,6 +649,7 @@ last_plot() +
 ```
 
 ```{r}
+set_region_country_rnaturalearth()  
 
 nato_names <- c("Albania", "Belgium", "Bulgaria", "Canada", "Croatia", "Czech Republic", "Denmark", "Estonia", "France", "Germany", "Greece", "Hungary",  
                 "Iceland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Turkey", "United Kingdom", "United States")  
@@ -606,20 +657,19 @@ nato_names <- c("Albania", "Belgium", "Bulgaria", "Canada", "Croatia", "Czech Re
 library(gapminder)  
 gapminder %>%  
   filter(year == 2002) %>%  
-  rename(name = country) ->  
-gapminder_2002_prepped  
-
-gapminder_2002_prepped %>%   
+  rename(name = country) %>%   
   ggplot() +  
   aes(country_name = name) +
   geom_region(keep_id = nato_names) + 
   aes(fill = gdpPercap)
-  
 ```
 
 
 
 ```{r}
+
+set_region_country_rnaturalearth()  
+
 country_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-24/country_results_df.csv')
 
 country_results_df %>% 
@@ -635,11 +685,12 @@ country_results_df %>%
                      country, "\n", points,"\n")) + 
   geom_region_text(size = 1.5,
                    lineheight = .7,
-                   check_overlap = T)
+                   check_overlap = T) + 
+  labs(title = "International Math Olympiad points earned in country_results_df.csv")
 
 last_plot() + 
-  aes(fill = (p1+p2+p3+p4+p5+p6)/team_size_all) + 
-  aes(label = round((p1+p2+p3+p4+p5+p6)/team_size_all, 1))
+  aes(fill = points/team_size_all) + 
+  aes(label = round((points)/team_size_all, 1))
   
 ggplot2::theme_set
 ```  
@@ -820,6 +871,8 @@ USArrests  %>%
   aes(fill = UrbanPop) + 
   scale_fill_viridis_c()
 
+set_region_state_usmapdata()
+
 
 nhl_player_births <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-01-09/nhl_player_births.csv')
 
@@ -832,45 +885,46 @@ nhl_player_births |>
   geom_region() + 
   geom_region_text(aes(label = n), 
                    color = "whitesmoke",
-                   size = 3)
+                   size = 3) + 
+  labs(title = "NHL players from US states in nhl_player_births.csv")
 
-polling_places <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-01-16/polling_places.csv')
 
 
-polling_places |>
-  filter(year(election_date) == 2020) %>% 
-  count(state) %>%  
-  ggplot() + 
-  aes(state_abb = state, fill = n) + 
-  stamp_region() + 
-  geom_region()
+
+set_region_state_usmapdata()
 
 
 pride_index <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-06-11/pride_index.csv')
 
 
 pride_index %>% 
-  mutate(state_abb = campus_location %>% str_extract("..$")) %>%
-  summarise(average_rating = mean(rating), .by = state_abb) %>% 
+  mutate(state_abb = campus_location %>% 
+           str_extract("..$")) %>%
+  summarise(average_rating = mean(rating), 
+            .by = state_abb) %>% 
   ggplot() + 
   aes(state_abb = state_abb, fill = average_rating) + 
   stamp_region() +
   geom_region() + 
-  scale_fill_viridis_c()
+  scale_fill_viridis_c() + 
+  labs(title = "Mean pride index rating for colleges in pride_index.csv")
   
+
+set_region_state_usmapdata()
+
 
 eclipse_total_2024 <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-09/eclipse_total_2024.csv')
 
 
 eclipse_total_2024 %>% 
+  distinct(state) %>%  
   ggplot() + 
-  aes(state_abb = state,) + 
+  aes(state_abb = state) + 
+  stamp_region() +
   geom_region(data = . %>% distinct(state),
-              fill = "midnightblue")
-
-
-
-
+              fill = "midnightblue") + 
+  labs(title = "'eclipse_1' US state locations eclipse_total_2024.csv")
+  
 
 ```
 
@@ -900,29 +954,42 @@ set_region_county_usmapdata()
 ggplot() + 
   aes(fips = 1) + 
   stamp_region()
+```
 
-
-
-  
-  
+```{r}
+set_region_county_usmapdata()
 
 polling_places <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-01-16/polling_places.csv')
 
 polling_places |>
   filter(year(election_date) == 2020) %>% 
-  mutate(county_name = stringr::str_to_title(county_name)) %>% 
+  mutate(county_name = 
+           stringr::str_to_title(county_name)) %>% 
   count(state, county_name) %>% 
   ggplot() + 
-  aes(state_abb = state, county_name = county_name) + 
+  aes(state_abb = state, 
+      county_name = county_name,
+      fill = n) + 
   stamp_region() + 
   geom_region() +
-  aes(fill = n) + 
+  labs(title = "Number of polling places by county, 2020 in polling_places.csv") +
   scale_fill_viridis_c(transform = "log", 
                        option = "magma",
-                       breaks = c(1, 10, 100, 1000, 10000))
+                       breaks = c(1, 10, 100, 1000, 10000)) 
 
-layer_data(i = 2)
+set_region_state_usmapdata()
 
+
+polling_places <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-01-16/polling_places.csv')
+
+polling_places |>
+  filter(year(election_date) == 2020) %>% 
+  count(state) %>%  
+  ggplot() + 
+  aes(state_abb = state, fill = n) + 
+  stamp_region() + 
+  geom_region() + 
+  labs(title = "Number of polling places, 2020")
 ```
 
 
