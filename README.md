@@ -43,15 +43,15 @@ where the task is a snap 🫰:
 
 Proposed API is:
 
-    library(sf2stat)
+    library(ggregion)
     --
     --
     read.csv("nc-midterms.csv") |>
       ggplot() + 
       aes(county_name = str_to_title(desc_county)) + 
-      geom_county() + 
+      geom_region() + 
       aes(fill = cd_party) +
-      geom_county_text()
+      geom_region_text()
 
 # Package build Part I. Work out functionality ✅
 
@@ -213,7 +213,7 @@ read.csv("nc-midterms.csv") |>
 
 ``` r
 # same as geom_sf but geom (and stat) is flexible
-qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", 
+qlayer_sf_crs <- function (mapping = NULL, data = NULL, geom = "sf", 
                            stat = "sf", position = "identity", 
                            na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, 
                            crs, ...) {
@@ -229,8 +229,6 @@ stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref),
                         id_index = 1, 
                         required_aes = getOption("sf2stat.required_aes", "fips|county_name"),
                         geom = GeomSf, ...){
-  
-  # if(!is.null(stamp)){if(stamp){required_aes = c()}}
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
@@ -275,8 +273,6 @@ stat_subregion <- function(ref_data = getOption("sf2stat.ref_data_subregion", nc
                         id_index = 1, 
                         required_aes = getOption("sf2stat.required_aes_subregion", "fips|county_name"),
                         geom = GeomSf, ...){
-  
-  # if(!is.null(stamp)){if(stamp){required_aes = c()}}
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
@@ -565,6 +561,54 @@ heritage %>%
 ![](man/figures/README-unnamed-chunk-14-1.png)<!-- -->
 
 ``` r
+democracy_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-11-05/democracy_data.csv')
+#> Rows: 14768 Columns: 43
+#> ── Column specification ────────────────────────────────────────────────────────
+#> Delimiter: ","
+#> chr (11): country_name, country_code, regime_category, monarch_name, preside...
+#> dbl (15): year, regime_category_index, monarch_accession_year, monarch_birth...
+#> lgl (17): is_monarchy, is_commonwealth, is_female_monarch, is_democracy, is_...
+#> 
+#> ℹ Use `spec()` to retrieve the full column specification for this data.
+#> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+```
+
+``` r
+
+set_region_country_rnaturalearth()
+#> Region iscountry
+#> Required aes: 'country_name|iso3c'
+```
+
+``` r
+
+democracy_data %>% 
+  filter(year == 2020) %>% 
+  ggplot() + 
+  aes(iso3c = country_code) +
+  geom_region() + 
+  aes(fill = regime_category)
+#> Joining with `by = join_by(iso3c)`
+```
+
+![](man/figures/README-unnamed-chunk-15-1.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  aes(fill = NULL) + 
+  geom_region(fill = "grey10", 
+              data = . %>% filter(regime_category %>% stringr::str_detect("dictatorship"))) + 
+  labs(title = "Countries classified as dictatorships in 2020\nin 2024-11-05/democracy_data.csv")
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+#> Joining with `by = join_by(iso3c)`
+#> Joining with `by = join_by(iso3c)`
+```
+
+![](man/figures/README-unnamed-chunk-15-2.png)<!-- -->
+
+``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
@@ -597,7 +641,7 @@ worlds_fairs %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-15-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
@@ -649,7 +693,7 @@ stackoverflow_survey_single_response %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-16-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 
@@ -671,7 +715,7 @@ stackoverflow_survey_single_response %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-16-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-17-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()  
@@ -703,7 +747,7 @@ eclipse_total_2024 %>%
   geom_point(aes(y = lat, x = lon, color = eclipse_1))
 ```
 
-![](man/figures/README-unnamed-chunk-17-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-18-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
@@ -741,7 +785,7 @@ outer_space_objects |>
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-18-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-19-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
@@ -792,7 +836,7 @@ wwbi_data %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-19-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-20-1.png)<!-- -->
 
 ``` r
 
@@ -812,7 +856,7 @@ wwbi_data %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-19-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-20-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
@@ -846,7 +890,7 @@ wwbi_country %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-20-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-21-1.png)<!-- -->
 
 ``` r
 
@@ -855,7 +899,7 @@ last_plot() +
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-20-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-21-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
@@ -901,7 +945,7 @@ cheeses %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-21-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-22-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
@@ -929,7 +973,7 @@ tidyr::world_bank_pop %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-22-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-23-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth(scale = "large")  
@@ -973,7 +1017,7 @@ orcas |>
 #> replace the existing one.
 ```
 
-![](man/figures/README-unnamed-chunk-23-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-24-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()  
@@ -1007,7 +1051,7 @@ cia_factbook %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-24-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-25-1.png)<!-- -->
 
 ``` r
 
@@ -1025,7 +1069,7 @@ last_plot() +
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-24-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-25-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()  
@@ -1049,7 +1093,7 @@ gapminder %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-25-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-26-1.png)<!-- -->
 
 ``` r
 
@@ -1097,7 +1141,7 @@ country_results_df %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-26-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-27-1.png)<!-- -->
 
 ``` r
 
@@ -1108,7 +1152,7 @@ last_plot() +
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-26-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-27-2.png)<!-- -->
 
 ``` r
   
@@ -1120,7 +1164,7 @@ ggplot2::theme_set
 #>     ggplot_global$theme_current <- new
 #>     invisible(old)
 #> }
-#> <bytecode: 0x7f793aff5ec8>
+#> <bytecode: 0x7feb11dfae58>
 #> <environment: namespace:ggplot2>
 ```
 
@@ -1230,7 +1274,7 @@ nhl_player_births |>
 #> Joining with `by = join_by(prov_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-27-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-28-1.png)<!-- -->
 
 ## Netherlands province
 
@@ -1318,7 +1362,7 @@ NLD_prov %>%
 #> old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-28-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-29-1.png)<!-- -->
 
 ``` r
 
@@ -1334,7 +1378,7 @@ last_plot() +
 #> Joining with `by = join_by(prov_code)`old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-28-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-29-2.png)<!-- -->
 
 ``` r
 
@@ -1363,7 +1407,7 @@ NLD_muni %>%
 #> Joining with `by = join_by(muni_code)`old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-28-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-29-3.png)<!-- -->
 
 ``` r
 
@@ -1384,7 +1428,7 @@ last_plot() +
 #> old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-28-4.png)<!-- -->
+![](man/figures/README-unnamed-chunk-29-4.png)<!-- -->
 
 ## US states
 
@@ -1420,7 +1464,7 @@ USArrests  %>%
 #> Joining with `by = join_by(state_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-29-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-30-1.png)<!-- -->
 
 ``` r
 
@@ -1464,7 +1508,7 @@ nhl_player_births |>
 #> Joining with `by = join_by(state_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-29-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-30-2.png)<!-- -->
 
 ``` r
 
@@ -1508,7 +1552,7 @@ pride_index %>%
 #> Joining with `by = join_by(state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-29-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-30-3.png)<!-- -->
 
 ``` r
   
@@ -1548,7 +1592,7 @@ eclipse_total_2024 %>%
 #> Joining with `by = join_by(state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-29-4.png)<!-- -->
+![](man/figures/README-unnamed-chunk-30-4.png)<!-- -->
 
 ## US counties
 
@@ -1582,7 +1626,7 @@ ggplot() +
   stamp_region()
 ```
 
-![](man/figures/README-unnamed-chunk-30-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-31-1.png)<!-- -->
 
 ``` r
 set_region_county_usmapdata()
@@ -1624,7 +1668,7 @@ polling_places |>
 #> Joining with `by = join_by(county_name, state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-31-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-32-1.png)<!-- -->
 
 ``` r
 
@@ -1661,7 +1705,7 @@ polling_places |>
 #> Joining with `by = join_by(state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-31-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-32-2.png)<!-- -->
 
 ## aseg brain segments
 
@@ -1693,7 +1737,7 @@ ggplot() +
 #> replace the existing one.
 ```
 
-![](man/figures/README-unnamed-chunk-32-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-33-1.png)<!-- -->
 
 ``` r
 
@@ -1711,7 +1755,7 @@ ggplot() +
 #> replace the existing one.
 ```
 
-![](man/figures/README-unnamed-chunk-32-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-33-2.png)<!-- -->
 
 ## German voting districts
 
@@ -1814,7 +1858,7 @@ read.csv("nc-midterms.csv") |>
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-36-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-37-1.png)<!-- -->
 
 We see that there are actually undiscovered counties, as exact name
 matching can be a little dicy. Using fips which would probably perform
@@ -1832,7 +1876,7 @@ read.csv("nc-midterms.csv") |>
   stamp_county(fill = 'darkgrey')
 ```
 
-![](man/figures/README-unnamed-chunk-37-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-38-1.png)<!-- -->
 
 Then we use geom_county(), which reflects your data and the success of
 the underlying join process.
@@ -1845,7 +1889,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-38-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-39-1.png)<!-- -->
 
 Then look at population choropleth (fill = n) and highlight Mecklenburg
 with convenience annotation layer ‘stamp_county’
@@ -1857,7 +1901,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-39-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-40-1.png)<!-- -->
 
 highlight at county of interest…
 
@@ -1871,7 +1915,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-40-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-41-1.png)<!-- -->
 
 We can add a text layer defaults to ref_data column 1 (id_index
 setting)…
@@ -1887,7 +1931,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-41-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-42-1.png)<!-- -->
 
 We can look at another variable…
 
@@ -1898,7 +1942,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-42-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-43-1.png)<!-- -->
 
 And another…
 
@@ -1909,7 +1953,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-43-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-44-1.png)<!-- -->
 
 And look at some values for that variable
 
@@ -1920,7 +1964,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-44-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-45-1.png)<!-- -->
 
 ``` r
 knitr::knit_exit()

@@ -38,15 +38,15 @@ With the {sf2stat} package, we'll live in a different world (🦄 🦄 🦄) whe
 Proposed API is:
 
 ```
-library(sf2stat)
+library(ggregion)
 --
 --
 read.csv("nc-midterms.csv") |>
   ggplot() + 
   aes(county_name = str_to_title(desc_county)) + 
-  geom_county() + 
+  geom_region() + 
   aes(fill = cd_party) +
-  geom_county_text()
+  geom_region_text()
 ```
 
 
@@ -151,7 +151,7 @@ read.csv("nc-midterms.csv") |>
 
 ```{r}
 # same as geom_sf but geom (and stat) is flexible
-qlayer_sf_crs <- function (mapping = aes(), data = NULL, geom = "sf", 
+qlayer_sf_crs <- function (mapping = NULL, data = NULL, geom = "sf", 
                            stat = "sf", position = "identity", 
                            na.rm = FALSE, show.legend = NA, inherit.aes = TRUE, 
                            crs, ...) {
@@ -167,8 +167,6 @@ stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref),
                         id_index = 1, 
                         required_aes = getOption("sf2stat.required_aes", "fips|county_name"),
                         geom = GeomSf, ...){
-  
-  # if(!is.null(stamp)){if(stamp){required_aes = c()}}
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
@@ -215,8 +213,6 @@ stat_subregion <- function(ref_data = getOption("sf2stat.ref_data_subregion", nc
                         id_index = 1, 
                         required_aes = getOption("sf2stat.required_aes_subregion", "fips|county_name"),
                         geom = GeomSf, ...){
-  
-  # if(!is.null(stamp)){if(stamp){required_aes = c()}}
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
@@ -421,6 +417,27 @@ heritage %>%
   aes(fill = n_awards) + 
   facet_wrap(~year)
 ```
+
+
+```{r}
+democracy_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-11-05/democracy_data.csv')
+
+set_region_country_rnaturalearth()
+
+democracy_data %>% 
+  filter(year == 2020) %>% 
+  ggplot() + 
+  aes(iso3c = country_code) +
+  geom_region() + 
+  aes(fill = regime_category)
+
+last_plot() + 
+  aes(fill = NULL) + 
+  geom_region(fill = "grey10", 
+              data = . %>% filter(regime_category %>% stringr::str_detect("dictatorship"))) + 
+  labs(title = "Countries classified as dictatorships in 2020\nin 2024-11-05/democracy_data.csv")
+```
+
 
 ```{r}
 set_region_country_rnaturalearth()
