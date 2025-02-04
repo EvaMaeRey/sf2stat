@@ -15,7 +15,8 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   eval = T,
   warning = F,
-  message = T
+  message = T,
+  error = T
 )
 
 library(tidyverse)
@@ -88,10 +89,48 @@ prep_geo_reference <- function(ref_data, id_index = 1){
   
 }
 
+
+compute_panel_aggregation <- function(data, scales, fun = sum, non_grouping = c("fill", "wt", "within")){
+  
+  grp_cols <-  names(data)[!names(data) %in% non_grouping]
+  
+  # Thanks June! https://github.com/teunbrand/ggplot-extension-club/discussions/15
+  data %>% 
+    group_by(group_by(pick(any_of(grp_cols)))) ->   
+  data
+  
+  if(is.null(data$fill)){data <- mutate(data, fill = 1)}
+  if(is.null(data$wt)){data$wt <- 1}
+  
+  data %>% 
+    summarize(fill = fun(.data$fill*.data$wt), .groups = 'drop') |>
+    mutate(summary = fill) ->
+  data
+    
+  if(is.null(data$within)){data$within <- 1}
+
+  data %>%   
+    group_by(.data$within) %>% 
+    mutate(prop = .data$fill/sum(.data$fill)) %>%
+    mutate(percent = round(.data$prop*100)) -> 
+  data
+  
+  data
+  
+}
+
 # Flip the script... prepare compute (join) to happen in layer (NEW!)
 compute_panel_region <- function(data, scales, ref_data, id_index = 1,
                                  stamp = FALSE, keep_id = NULL,
-                                 drop_id = NULL){
+                                 drop_id = NULL, fun = sum){
+  
+  fill_is_category <- is.character(data$fill)|is.factor(data$fill)|is.logical(data$fill)
+  
+  if(!(fill_is_category)){
+  
+  data <- data |> compute_panel_aggregation(scales, fun = fun, non_grouping = c("fill", "wt", "within")) 
+  
+  }
   
   ref_data %>% 
     prep_geo_reference(id_index = id_index) ->
@@ -115,12 +154,14 @@ compute_panel_region <- function(data, scales, ref_data, id_index = 1,
   
   if(stamp){
     
-    ref_data
+    ref_data |>
+      mutate(fill = ifelse(fill_is_category, NA, NA |> as.numeric()))
     
   }else{
   
  ref_data %>% 
-    inner_join(data)
+    inner_join(data) 
+      
   
   }
     
@@ -170,7 +211,8 @@ stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref),
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
-                        default_aes = aes(label = after_stat(id_col)),
+                        default_aes = aes(label = after_stat(id_col), 
+                                          fill = after_stat(fill)),
                         required_aes = required_aes)
   
   qlayer_sf_crs(stat = StatSfJoin, 
@@ -186,7 +228,7 @@ stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref),
 
 GeomOutline <- ggproto("GeomOutline", GeomSf,
                        default_aes = aes(!!!modifyList(GeomSf$default_aes,
-                                                       aes(fill = NA, 
+                                                       aes(fill = "transparent", 
                                                            color = "black"))))
 
 geom_region_sf <- function(mapping = NULL, ...){stat_region(geom = GeomSf, mapping = mapping, ...)}
@@ -313,6 +355,8 @@ nc_midterms |>
     linewidth = 1) + 
   geom_region_text(check_overlap = T,
                    color = "whitesmoke")
+
+layer_data() |> head()
 ```
 
 
@@ -332,6 +376,7 @@ chilemapas::generar_regiones() %>%
 
 ```{r}
 set_region_region_chilemapas()
+options(scipen = 10)
 
 chilemapas::censo_2017_comunas %>% 
   mutate(region = str_extract(codigo_comuna, "..")) %>% 
@@ -340,7 +385,7 @@ chilemapas::censo_2017_comunas %>%
   aes(region_codigo = region, fill = pop/100000) +
   geom_region(linewidth = .01, color = "white") + 
   facet_wrap(~sexo) + 
-  scale_fill_viridis_b(transform = "log") + 
+  scale_fill_viridis_c(transform = "log") + 
   stamp_region_outline(color = "red", 
                        keep_id = "05")
 
@@ -393,7 +438,7 @@ rnaturalearth::ne_countries(
 set_region_country_rnaturalearth()
 
 ggplot() + 
-  aes(iso3c = 1) + # this shouldn't be required for stamp, but is
+  aes(iso3c = 1, fill = NULL) + # this shouldn't be required for stamp, but is
   stamp_region() + 
   stamp_region(keep_id = c("United States", "Brazil", "Canada", 
                            "France", "South Korea", "United Kingdom",
@@ -402,6 +447,50 @@ ggplot() +
                            "Sweden"), fill = "midnightblue") +
   labs(title = "extenders tuning in ...")
 ```
+
+```{r, fig.show='hold', out.width="33%"}
+set_region_country_rnaturalearth()
+
+countries_csv_url <- 'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-11-12/countries.csv'
+
+readr::read_csv(countries_csv_url) |>
+  ggplot() + 
+  aes(iso3c = alpha_3, # iso3c or country_name are required...
+      fill = numeric,
+      label = numeric) + 
+  geom_region() +
+  geom_region_text(check_overlap = T,
+                   size = 2, 
+                   color = "whitesmoke") + 
+  labs(title = "ISO numeric country codes")
+```
+
+
+```{r}
+last_plot() +
+  aes(fill = rank(name)) + 
+  labs(title = "Are numeric codes basically spaced alphabetical orderings")
+
+last_plot() + 
+  aes(fill = log(abs(rank(numeric) - rank(name)) + 1)) + 
+  labs(title = "Which codes are furthest from expected if alphabetical dominates?")
+
+last_plot() + 
+  aes(fill = str_extract(name, "...") |> toupper() == alpha_3) +
+  labs(title = "Which countries iso3c is exact match with first three letters?") %>% 
+  labs(fill = "First three letters is ISO3")
+
+
+readr::read_csv(countries_csv_url) |>
+  ggplot() + 
+  aes(x = rank(name), 
+      y = numeric, 
+      label = name) + 
+  geom_point(color = "black") +
+  stat_smooth(method = "lm")
+```
+
+
 
 
 ```{r}
@@ -433,9 +522,9 @@ democracy_data %>%
 
 last_plot() + 
   aes(fill = NULL) + 
-  geom_region(fill = "grey10", 
+  geom_region(fill = "darkred", 
               data = . %>% filter(regime_category %>% stringr::str_detect("dictatorship"))) + 
-  labs(title = "Countries classified as dictatorships in 2020\nin 2024-11-05/democracy_data.csv")
+  labs(title = "Countries classified as dictatorships in 2020 in 2024-11-05/democracy_data.csv")
 ```
 
 
@@ -447,7 +536,7 @@ worlds_fairs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascien
 worlds_fairs %>%
   count(country) %>% 
   ggplot() + 
-  aes(country_name = country, fill = n) + 
+  aes(country_name = country, wt = n) + 
   stamp_region(drop_id = "Antarctica") +
   geom_region() +
   labs(title = "number of World Fairs, worlds_fairs.csv")
@@ -491,6 +580,19 @@ stackoverflow_survey_single_response %>%
   stamp_region() +
   geom_region() + 
   scale_fill_viridis_c()
+
+
+stackoverflow_survey_single_response %>% 
+  mutate(iso3c = countrycode(country, "country.name", "iso3c")) %>% 
+  filter(!is.na(r_used)) %>% 
+  filter(n() > 10, .by = iso3c) %>% 
+  ggplot() + 
+  aes(iso3c = iso3c, fill = r_used) + 
+  stamp_region() +
+  geom_region(fun = mean) + 
+  scale_fill_viridis_c()
+
+layer_data(i = 2) |> head()
 ```
 
 
@@ -524,6 +626,17 @@ outer_space_objects |>
   scale_fill_viridis_c(transform = "log",
                        breaks = 10^(0:4)) + 
   labs(title = "Number of outerspace objects in outer_space_objects.csv")
+
+outer_space_objects |>
+  ggplot() + 
+  aes(iso3c = Code, fill = num_objects) +
+  stamp_region() +
+  geom_region() +
+  scale_fill_viridis_c(transform = "log",
+                       breaks = 10^(0:4)) + 
+  labs(title = "Number of outerspace objects in outer_space_objects.csv")
+
+layer_data(i = 2) |> head()
 ```
 
 
@@ -1022,8 +1135,6 @@ set_region_aseg_ggseg <- function(){
   select(region) %>% 
   options(sf2stat.ref_data = ., 
           sf2stat.required_aes = "region")
-  
-  
   
 }
 

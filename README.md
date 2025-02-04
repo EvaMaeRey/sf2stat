@@ -71,9 +71,6 @@ nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
 #> Dimension:     XY
 #> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
 #> Geodetic CRS:  NAD27
-```
-
-``` r
 
 read.csv("nc-midterms.csv") |>
   mutate(county_name = str_to_title(desc_county)) |>
@@ -100,10 +97,48 @@ prep_geo_reference <- function(ref_data, id_index = 1){
   
 }
 
+
+compute_panel_aggregation <- function(data, scales, fun = sum, non_grouping = c("fill", "wt", "within")){
+  
+  grp_cols <-  names(data)[!names(data) %in% non_grouping]
+  
+  # Thanks June! https://github.com/teunbrand/ggplot-extension-club/discussions/15
+  data %>% 
+    group_by(group_by(pick(any_of(grp_cols)))) ->   
+  data
+  
+  if(is.null(data$fill)){data <- mutate(data, fill = 1)}
+  if(is.null(data$wt)){data$wt <- 1}
+  
+  data %>% 
+    summarize(fill = fun(.data$fill*.data$wt), .groups = 'drop') |>
+    mutate(summary = fill) ->
+  data
+    
+  if(is.null(data$within)){data$within <- 1}
+
+  data %>%   
+    group_by(.data$within) %>% 
+    mutate(prop = .data$fill/sum(.data$fill)) %>%
+    mutate(percent = round(.data$prop*100)) -> 
+  data
+  
+  data
+  
+}
+
 # Flip the script... prepare compute (join) to happen in layer (NEW!)
 compute_panel_region <- function(data, scales, ref_data, id_index = 1,
                                  stamp = FALSE, keep_id = NULL,
-                                 drop_id = NULL){
+                                 drop_id = NULL, fun = sum){
+  
+  fill_is_category <- is.character(data$fill)|is.factor(data$fill)|is.logical(data$fill)
+  
+  if(!(fill_is_category)){
+  
+  data <- data |> compute_panel_aggregation(scales, fun = fun, non_grouping = c("fill", "wt", "within")) 
+  
+  }
   
   ref_data %>% 
     prep_geo_reference(id_index = id_index) ->
@@ -127,12 +162,14 @@ compute_panel_region <- function(data, scales, ref_data, id_index = 1,
   
   if(stamp){
     
-    ref_data
+    ref_data |>
+      mutate(fill = ifelse(fill_is_category, NA, NA |> as.numeric()))
     
   }else{
   
  ref_data %>% 
-    inner_join(data)
+    inner_join(data) 
+      
   
   }
     
@@ -150,16 +187,13 @@ nc_ref <- sf::st_read(system.file("shape/nc.shp", package="sf")) |>
 #> Dimension:     XY
 #> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
 #> Geodetic CRS:  NAD27
-```
-
-``` r
 
 read.csv("nc-midterms.csv") |>
   mutate(county_name = str_to_title(desc_county)) |>
   select(county_name) |>
   compute_panel_region(ref_data = nc_ref)
 #> Joining with `by = join_by(county_name)`
-#> Simple feature collection with 98 features and 9 fields
+#> Simple feature collection with 98 features and 14 fields
 #> Geometry type: MULTIPOLYGON
 #> Dimension:     XY
 #> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
@@ -176,35 +210,32 @@ read.csv("nc-midterms.csv") |>
 #> 8        Gates 37073 -84.32385 -75.45698 33.88199 36.58965 -76.72199 36.43576
 #> 9       Warren 37185 -84.32385 -75.45698 33.88199 36.58965 -78.11342 36.42681
 #> 10      Stokes 37169 -84.32385 -75.45698 33.88199 36.58965 -80.23459 36.40106
-#>         id_col                       geometry
-#> 1         Ashe MULTIPOLYGON (((-81.47276 3...
-#> 2    Alleghany MULTIPOLYGON (((-81.23989 3...
-#> 3        Surry MULTIPOLYGON (((-80.45634 3...
-#> 4    Currituck MULTIPOLYGON (((-76.00897 3...
-#> 5  Northampton MULTIPOLYGON (((-77.21767 3...
-#> 6     Hertford MULTIPOLYGON (((-76.74506 3...
-#> 7       Camden MULTIPOLYGON (((-76.00897 3...
-#> 8        Gates MULTIPOLYGON (((-76.56251 3...
-#> 9       Warren MULTIPOLYGON (((-78.30876 3...
-#> 10      Stokes MULTIPOLYGON (((-80.02567 3...
-```
-
-``` r
+#>         id_col fill summary within prop percent                       geometry
+#> 1         Ashe    1       1      1 0.01       1 MULTIPOLYGON (((-81.47276 3...
+#> 2    Alleghany    1       1      1 0.01       1 MULTIPOLYGON (((-81.23989 3...
+#> 3        Surry    1       1      1 0.01       1 MULTIPOLYGON (((-80.45634 3...
+#> 4    Currituck    1       1      1 0.01       1 MULTIPOLYGON (((-76.00897 3...
+#> 5  Northampton    1       1      1 0.01       1 MULTIPOLYGON (((-77.21767 3...
+#> 6     Hertford    1       1      1 0.01       1 MULTIPOLYGON (((-76.74506 3...
+#> 7       Camden    1       1      1 0.01       1 MULTIPOLYGON (((-76.00897 3...
+#> 8        Gates    1       1      1 0.01       1 MULTIPOLYGON (((-76.56251 3...
+#> 9       Warren    1       1      1 0.01       1 MULTIPOLYGON (((-78.30876 3...
+#> 10      Stokes    1       1      1 0.01       1 MULTIPOLYGON (((-80.02567 3...
 
 read.csv("nc-midterms.csv") |>
   mutate(county_name = str_to_title(desc_county)) |>
   select(county_name) |>
   compute_panel_region(ref_data = nc_ref, keep_id = "Mecklenburg")
 #> Joining with `by = join_by(county_name)`
-#> Simple feature collection with 1 feature and 9 fields
+#> Simple feature collection with 1 feature and 14 fields
 #> Geometry type: MULTIPOLYGON
 #> Dimension:     XY
 #> Bounding box:  xmin: -81.06555 ymin: 35.00202 xmax: -80.53964 ymax: 35.50912
 #> Geodetic CRS:  NAD27
 #>   county_name  fips      xmin      xmax     ymin     ymax         x        y
 #> 1 Mecklenburg 37119 -84.32385 -75.45698 33.88199 36.58965 -80.82771 35.25729
-#>        id_col                       geometry
-#> 1 Mecklenburg MULTIPOLYGON (((-81.0493 35...
+#>        id_col fill summary within prop percent                       geometry
+#> 1 Mecklenburg    1       1      1 0.01       1 MULTIPOLYGON (((-81.0493 35...
 ```
 
 # wrapping up more
@@ -232,7 +263,8 @@ stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref),
   
   StatSfJoin <- ggproto("StatSfJoin", Stat, 
                         compute_panel = compute_panel_region, 
-                        default_aes = aes(label = after_stat(id_col)),
+                        default_aes = aes(label = after_stat(id_col), 
+                                          fill = after_stat(fill)),
                         required_aes = required_aes)
   
   qlayer_sf_crs(stat = StatSfJoin, 
@@ -248,7 +280,7 @@ stat_region <- function(ref_data = getOption("sf2stat.ref_data", nc_ref),
 
 GeomOutline <- ggproto("GeomOutline", GeomSf,
                        default_aes = aes(!!!modifyList(GeomSf$default_aes,
-                                                       aes(fill = NA, 
+                                                       aes(fill = "transparent", 
                                                            color = "black"))))
 
 geom_region_sf <- function(mapping = NULL, ...){stat_region(geom = GeomSf, mapping = mapping, ...)}
@@ -361,9 +393,6 @@ head(nc_midterms)
 #> 4       ANSON  9028 0.5674062 0.4267833
 #> 5     HALIFAX 21875 0.5865712 0.4337829
 #> 6       ROWAN 23667 0.2424922 0.4338108
-```
-
-``` r
 
 set_region_sf_nc_counties()
 #> Reading layer `nc' from data source 
@@ -376,9 +405,6 @@ set_region_sf_nc_counties()
 #> Geodetic CRS:  NAD27
 #> Region iscounty
 #> Required aes: 'county_name|fips'
-```
-
-``` r
 
 nc_midterms |>
   ggplot() + 
@@ -404,6 +430,34 @@ nc_midterms |>
 
 ![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
 
+``` r
+
+layer_data() |> head()
+#> Joining with `by = join_by(county_name)`
+#> Joining with `by = join_by(county_name)`
+#>       fill       label PANEL county_name  fips                       geometry
+#> 1 darkgrey        Ashe     1        Ashe 37009 MULTIPOLYGON (((-81.47276 3...
+#> 2 darkgrey   Alleghany     1   Alleghany 37005 MULTIPOLYGON (((-81.23989 3...
+#> 3 darkgrey       Surry     1       Surry 37171 MULTIPOLYGON (((-80.45634 3...
+#> 4 darkgrey   Currituck     1   Currituck 37053 MULTIPOLYGON (((-76.00897 3...
+#> 5 darkgrey Northampton     1 Northampton 37131 MULTIPOLYGON (((-77.21767 3...
+#> 6 darkgrey    Hertford     1    Hertford 37091 MULTIPOLYGON (((-76.74506 3...
+#>        xmin      xmax     ymin     ymax         x        y      id_col linetype
+#> 1 -84.32385 -75.45698 33.88199 36.58965 -81.49496 36.42112        Ashe        1
+#> 2 -84.32385 -75.45698 33.88199 36.58965 -81.13241 36.47396   Alleghany        1
+#> 3 -84.32385 -75.45698 33.88199 36.58965 -80.69280 36.38828       Surry        1
+#> 4 -84.32385 -75.45698 33.88199 36.58965 -75.93852 36.30697   Currituck        1
+#> 5 -84.32385 -75.45698 33.88199 36.58965 -77.36988 36.35211 Northampton        1
+#> 6 -84.32385 -75.45698 33.88199 36.58965 -77.04217 36.39709    Hertford        1
+#>   alpha stroke    colour linewidth
+#> 1    NA    0.5 #595959FF       0.2
+#> 2    NA    0.5 #595959FF       0.2
+#> 3    NA    0.5 #595959FF       0.2
+#> 4    NA    0.5 #595959FF       0.2
+#> 5    NA    0.5 #595959FF       0.2
+#> 6    NA    0.5 #595959FF       0.2
+```
+
 ## Chile regiones
 
 ``` r
@@ -422,9 +476,7 @@ chilemapas::generar_regiones() %>%
 set_region_region_chilemapas()
 #> Region isregion
 #> Required aes: 'region_codigo|region_numerico'
-```
-
-``` r
+options(scipen = 10)
 
 chilemapas::censo_2017_comunas %>% 
   mutate(region = str_extract(codigo_comuna, "..")) %>% 
@@ -433,7 +485,7 @@ chilemapas::censo_2017_comunas %>%
   aes(region_codigo = region, fill = pop/100000) +
   geom_region(linewidth = .01, color = "white") + 
   facet_wrap(~sexo) + 
-  scale_fill_viridis_b(transform = "log") + 
+  scale_fill_viridis_c(transform = "log") + 
   stamp_region_outline(color = "red", 
                        keep_id = "05")
 #> Coordinate system already present. Adding new coordinate system, which will
@@ -507,12 +559,9 @@ rnaturalearth::ne_countries(
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 ggplot() + 
-  aes(iso3c = 1) + # this shouldn't be required for stamp, but is
+  aes(iso3c = 1, fill = NULL) + # this shouldn't be required for stamp, but is
   stamp_region() + 
   stamp_region(keep_id = c("United States", "Brazil", "Canada", 
                            "France", "South Korea", "United Kingdom",
@@ -530,9 +579,95 @@ ggplot() +
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
+
+countries_csv_url <- 'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-11-12/countries.csv'
+
+readr::read_csv(countries_csv_url) |>
+  ggplot() + 
+  aes(iso3c = alpha_3, # iso3c or country_name are required...
+      fill = numeric,
+      label = numeric) + 
+  geom_region() +
+  geom_region_text(check_overlap = T,
+                   size = 2, 
+                   color = "whitesmoke") + 
+  labs(title = "ISO numeric country codes")
+#> Rows: 249 Columns: 6
+#> ── Column specification ────────────────────────────────────────────────────────
+#> Delimiter: ","
+#> chr (5): alpha_2, alpha_3, name, official_name, common_name
+#> dbl (1): numeric
+#> 
+#> ℹ Use `spec()` to retrieve the full column specification for this data.
+#> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+#> Joining with `by = join_by(iso3c)`
+#> Joining with `by = join_by(iso3c)`
 ```
 
+<img src="man/figures/README-unnamed-chunk-14-1.png" width="33%" />
+
 ``` r
+last_plot() +
+  aes(fill = rank(name)) + 
+  labs(title = "Are numeric codes basically spaced alphabetical orderings")
+#> Joining with `by = join_by(iso3c)`
+#> Joining with `by = join_by(iso3c)`
+```
+
+![](man/figures/README-unnamed-chunk-15-1.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  aes(fill = log(abs(rank(numeric) - rank(name)) + 1)) + 
+  labs(title = "Which codes are furthest from expected if alphabetical dominates?")
+#> Joining with `by = join_by(iso3c)`
+#> Joining with `by = join_by(iso3c)`
+```
+
+![](man/figures/README-unnamed-chunk-15-2.png)<!-- -->
+
+``` r
+
+last_plot() + 
+  aes(fill = str_extract(name, "...") |> toupper() == alpha_3) +
+  labs(title = "Which countries iso3c is exact match with first three letters?") %>% 
+  labs(fill = "First three letters is ISO3")
+#> Joining with `by = join_by(iso3c)`
+#> Joining with `by = join_by(iso3c)`
+```
+
+![](man/figures/README-unnamed-chunk-15-3.png)<!-- -->
+
+``` r
+
+
+readr::read_csv(countries_csv_url) |>
+  ggplot() + 
+  aes(x = rank(name), 
+      y = numeric, 
+      label = name) + 
+  geom_point(color = "black") +
+  stat_smooth(method = "lm")
+#> Rows: 249 Columns: 6
+#> ── Column specification ────────────────────────────────────────────────────────
+#> Delimiter: ","
+#> chr (5): alpha_2, alpha_3, name, official_name, common_name
+#> dbl (1): numeric
+#> 
+#> ℹ Use `spec()` to retrieve the full column specification for this data.
+#> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+![](man/figures/README-unnamed-chunk-15-4.png)<!-- -->
+
+``` r
+set_region_country_rnaturalearth()
+#> Region iscountry
+#> Required aes: 'country_name|iso3c'
 
 heritage <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-02-06/heritage.csv')
 #> Rows: 3 Columns: 3
@@ -543,9 +678,6 @@ heritage <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/t
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 heritage %>% 
   pivot_longer(cols = `2004`:`2022`, names_to = "year", values_to = "n_awards") %>% 
@@ -558,7 +690,7 @@ heritage %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-14-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 democracy_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-11-05/democracy_data.csv')
@@ -571,16 +703,10 @@ democracy_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatasci
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 democracy_data %>% 
   filter(year == 2020) %>% 
@@ -591,30 +717,27 @@ democracy_data %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-15-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 
 last_plot() + 
   aes(fill = NULL) + 
-  geom_region(fill = "grey10", 
+  geom_region(fill = "darkred", 
               data = . %>% filter(regime_category %>% stringr::str_detect("dictatorship"))) + 
-  labs(title = "Countries classified as dictatorships in 2020\nin 2024-11-05/democracy_data.csv")
+  labs(title = "Countries classified as dictatorships in 2020 in 2024-11-05/democracy_data.csv")
 #> Coordinate system already present. Adding new coordinate system, which will
 #> replace the existing one.
 #> Joining with `by = join_by(iso3c)`
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-15-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-17-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 worlds_fairs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-08-13/worlds_fairs.csv')
 #> Rows: 70 Columns: 14
@@ -625,14 +748,11 @@ worlds_fairs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascien
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 worlds_fairs %>%
   count(country) %>% 
   ggplot() + 
-  aes(country_name = country, fill = n) + 
+  aes(country_name = country, wt = n) + 
   stamp_region(drop_id = "Antarctica") +
   geom_region() +
   labs(title = "number of World Fairs, worlds_fairs.csv")
@@ -641,15 +761,12 @@ worlds_fairs %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-16-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-18-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 stackoverflow_survey_single_response <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-03/stackoverflow_survey_single_response.csv')
 #> Rows: 65437 Columns: 28
@@ -660,9 +777,6 @@ stackoverflow_survey_single_response <- readr::read_csv('https://raw.githubuserc
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 stackoverflow_survey_single_response %>%
   mutate(iso3c = 
@@ -693,7 +807,7 @@ stackoverflow_survey_single_response %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-17-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-19-1.png)<!-- -->
 
 ``` r
 
@@ -715,15 +829,65 @@ stackoverflow_survey_single_response %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-17-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-19-2.png)<!-- -->
+
+``` r
+
+
+stackoverflow_survey_single_response %>% 
+  mutate(iso3c = countrycode(country, "country.name", "iso3c")) %>% 
+  filter(!is.na(r_used)) %>% 
+  filter(n() > 10, .by = iso3c) %>% 
+  ggplot() + 
+  aes(iso3c = iso3c, fill = r_used) + 
+  stamp_region() +
+  geom_region(fun = mean) + 
+  scale_fill_viridis_c()
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+#> Joining with `by = join_by(iso3c)`
+```
+
+![](man/figures/README-unnamed-chunk-19-3.png)<!-- -->
+
+``` r
+
+layer_data(i = 2) |> head()
+#> Joining with `by = join_by(iso3c)`
+#>      fill                       label                country_name iso3c xmin
+#> 1 #2B9289 United Republic of Tanzania United Republic of Tanzania   TZA -180
+#> 2 #404D88                      Canada                      Canada   CAN -180
+#> 3 #3E5489               United States               United States   USA -180
+#> 4 #440154                  Kazakhstan                  Kazakhstan   KAZ -180
+#> 5 #462167                  Uzbekistan                  Uzbekistan   UZB -180
+#> 6 #3E5589                   Indonesia                   Indonesia   IDN -180
+#>   xmax ymin     ymax          x          y                      id_col PANEL
+#> 1  180  -90 83.64513   34.14207 -6.2078294 United Republic of Tanzania     1
+#> 2  180  -90 83.64513 -110.24381 56.7019200                      Canada     1
+#> 3  180  -90 83.64513  -99.31483 37.2367450               United States     1
+#> 4  180  -90 83.64513   66.31159 48.0689612                  Kazakhstan     1
+#> 5  180  -90 83.64513   63.44288 41.3532772                  Uzbekistan     1
+#> 6  180  -90 83.64513  113.26946 -0.1785159                   Indonesia     1
+#>   group    summary within        prop percent                       geometry
+#> 1   115 0.10714286      1 0.019963705       2 MULTIPOLYGON (((33.90371 -0...
+#> 2    20 0.04912451      1 0.009153268       1 MULTIPOLYGON (((-122.84 49,...
+#> 3   119 0.05446683      1 0.010148691       1 MULTIPOLYGON (((-122.84 49,...
+#> 4    63 0.00000000      1 0.000000000       0 MULTIPOLYGON (((87.35997 49...
+#> 5   120 0.01639344      1 0.003054556       0 MULTIPOLYGON (((55.96819 41...
+#> 6    51 0.05539359      1 0.010321371       1 MULTIPOLYGON (((141.0002 -2...
+#>   linetype alpha stroke    colour linewidth
+#> 1        1    NA    0.5 #595959FF       0.2
+#> 2        1    NA    0.5 #595959FF       0.2
+#> 3        1    NA    0.5 #595959FF       0.2
+#> 4        1    NA    0.5 #595959FF       0.2
+#> 5        1    NA    0.5 #595959FF       0.2
+#> 6        1    NA    0.5 #595959FF       0.2
+```
 
 ``` r
 set_region_country_rnaturalearth()  
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 eclipse_total_2024 <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-09/eclipse_total_2024.csv')
 #> Rows: 3330 Columns: 10
@@ -735,9 +899,6 @@ eclipse_total_2024 <- readr::read_csv('https://raw.githubusercontent.com/rfordat
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 
 eclipse_total_2024 %>% 
@@ -747,15 +908,12 @@ eclipse_total_2024 %>%
   geom_point(aes(y = lat, x = lon, color = eclipse_1))
 ```
 
-![](man/figures/README-unnamed-chunk-18-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-20-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 outer_space_objects <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-23/outer_space_objects.csv')
 #> Rows: 1175 Columns: 4
@@ -766,9 +924,6 @@ outer_space_objects <- readr::read_csv('https://raw.githubusercontent.com/rforda
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 outer_space_objects |>
   summarise(num_objects = sum(num_objects), .by = Code) |>
@@ -785,15 +940,63 @@ outer_space_objects |>
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-19-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-21-1.png)<!-- -->
+
+``` r
+
+outer_space_objects |>
+  ggplot() + 
+  aes(iso3c = Code, fill = num_objects) +
+  stamp_region() +
+  geom_region() +
+  scale_fill_viridis_c(transform = "log",
+                       breaks = 10^(0:4)) + 
+  labs(title = "Number of outerspace objects in outer_space_objects.csv")
+#> Coordinate system already present. Adding new coordinate system, which will
+#> replace the existing one.
+#> Joining with `by = join_by(iso3c)`
+```
+
+![](man/figures/README-unnamed-chunk-21-2.png)<!-- -->
+
+``` r
+
+layer_data(i = 2) |> head()
+#> Joining with `by = join_by(iso3c)`
+#>      fill            label     country_name iso3c xmin xmax ymin     ymax
+#> 1 #46276C           Canada           Canada   CAN -180  180  -90 83.64513
+#> 2 #FDE725    United States    United States   USA -180  180  -90 83.64513
+#> 3 #440556       Kazakhstan       Kazakhstan   KAZ -180  180  -90 83.64513
+#> 4 #440154 Papua New Guinea Papua New Guinea   PNG -180  180  -90 83.64513
+#> 5 #440556        Indonesia        Indonesia   IDN -180  180  -90 83.64513
+#> 6 #450958        Argentina        Argentina   ARG -180  180  -90 83.64513
+#>            x           y           id_col PANEL group    summary within
+#> 1 -110.24381  56.7019200           Canada     1    15  25.003548      1
+#> 2  -99.31483  37.2367450    United States     1    93 255.467576      1
+#> 3   66.31159  48.0689612       Kazakhstan     1    46   2.197225      1
+#> 4  144.22612  -6.6678356 Papua New Guinea     1    71   0.000000      1
+#> 5  113.26946  -0.1785159        Indonesia     1    38   2.079442      1
+#> 6  -64.08055 -37.2391995        Argentina     1     3   3.871201      1
+#>          prop percent                       geometry linetype alpha stroke
+#> 1 0.018074709       2 MULTIPOLYGON (((-122.84 49,...        1    NA    0.5
+#> 2 0.184673881      18 MULTIPOLYGON (((-122.84 49,...        1    NA    0.5
+#> 3 0.001588342       0 MULTIPOLYGON (((87.35997 49...        1    NA    0.5
+#> 4 0.000000000       0 MULTIPOLYGON (((141.0002 -2...        1    NA    0.5
+#> 5 0.001503199       0 MULTIPOLYGON (((141.0002 -2...        1    NA    0.5
+#> 6 0.002798436       0 MULTIPOLYGON (((-68.63401 -...        1    NA    0.5
+#>      colour linewidth
+#> 1 #595959FF       0.2
+#> 2 #595959FF       0.2
+#> 3 #595959FF       0.2
+#> 4 #595959FF       0.2
+#> 5 #595959FF       0.2
+#> 6 #595959FF       0.2
+```
 
 ``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
  
 
 wwbi_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-30/wwbi_data.csv')
@@ -805,9 +1008,6 @@ wwbi_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 wwbi_series <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-30/wwbi_series.csv')
 #> Rows: 302 Columns: 2
 #> ── Column specification ────────────────────────────────────────────────────────
@@ -816,9 +1016,6 @@ wwbi_series <- readr::read_csv('https://raw.githubusercontent.com/rfordatascienc
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 
 wwbi_data %>% 
@@ -836,7 +1033,7 @@ wwbi_data %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-20-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-22-1.png)<!-- -->
 
 ``` r
 
@@ -856,15 +1053,12 @@ wwbi_data %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-20-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-22-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
    
 
 
@@ -878,9 +1072,6 @@ wwbi_country <- readr::read_csv('https://raw.githubusercontent.com/rfordatascien
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 
 wwbi_country %>% 
@@ -890,7 +1081,7 @@ wwbi_country %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-21-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-23-1.png)<!-- -->
 
 ``` r
 
@@ -899,15 +1090,12 @@ last_plot() +
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-21-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-23-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
  
 cheeses <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-06-04/cheeses.csv')
 #> Rows: 1187 Columns: 19
@@ -918,9 +1106,6 @@ cheeses <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/ti
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 cheeses %>% 
   filter(!str_detect(milk, ",")) %>% 
@@ -945,15 +1130,12 @@ cheeses %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-22-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-24-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 
 tidyr::world_bank_pop %>% 
@@ -973,15 +1155,12 @@ tidyr::world_bank_pop %>%
 #> Joining with `by = join_by(iso3c)`
 ```
 
-![](man/figures/README-unnamed-chunk-23-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-25-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth(scale = "large")  
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
 #> Rows: 775 Columns: 19
@@ -994,9 +1173,6 @@ orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidy
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 orcas |>
   ggplot() + 
@@ -1017,15 +1193,12 @@ orcas |>
 #> replace the existing one.
 ```
 
-![](man/figures/README-unnamed-chunk-24-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-26-1.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()  
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 cia_factbook <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-22/cia_factbook.csv')  
 #> Rows: 259 Columns: 11
@@ -1036,9 +1209,6 @@ cia_factbook <- readr::read_csv('https://raw.githubusercontent.com/rfordatascien
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
   
 cia_factbook %>% 
   ggplot() + 
@@ -1051,7 +1221,7 @@ cia_factbook %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-25-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-27-1.png)<!-- -->
 
 ``` r
 
@@ -1069,15 +1239,12 @@ last_plot() +
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-25-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-27-2.png)<!-- -->
 
 ``` r
 set_region_country_rnaturalearth()  
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 nato_names <- c("Albania", "Belgium", "Bulgaria", "Canada", "Croatia", "Czech Republic", "Denmark", "Estonia", "France", "Germany", "Greece", "Hungary",  
                 "Iceland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Montenegro", "Netherlands", "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Turkey", "United Kingdom", "United States")  
@@ -1093,16 +1260,13 @@ gapminder %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-26-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-28-1.png)<!-- -->
 
 ``` r
 
 set_region_country_rnaturalearth()  
 #> Region iscountry
 #> Required aes: 'country_name|iso3c'
-```
-
-``` r
 
 country_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-24/country_results_df.csv')
 #> Rows: 3780 Columns: 18
@@ -1114,9 +1278,6 @@ country_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordat
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 country_results_df %>% 
   filter(year == 2024) %>% 
@@ -1141,7 +1302,7 @@ country_results_df %>%
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-27-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-29-1.png)<!-- -->
 
 ``` r
 
@@ -1152,7 +1313,7 @@ last_plot() +
 #> Joining with `by = join_by(country_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-27-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-29-2.png)<!-- -->
 
 ``` r
   
@@ -1164,7 +1325,7 @@ ggplot2::theme_set
 #>     ggplot_global$theme_current <- new
 #>     invisible(old)
 #> }
-#> <bytecode: 0x7feb11dfae58>
+#> <bytecode: 0x7fec8011ba18>
 #> <environment: namespace:ggplot2>
 ```
 
@@ -1183,17 +1344,11 @@ nhl_player_births <- readr::read_csv('https://raw.githubusercontent.com/rfordata
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 head(nhl_player_births) |> names()
 #> [1] "player_id"            "first_name"           "last_name"           
 #> [4] "birth_date"           "birth_city"           "birth_country"       
 #> [7] "birth_state_province" "birth_year"           "birth_month"
-```
-
-``` r
 
 # library(cancensus)
 # provinces_data <- get_statcan_geographies(
@@ -1252,9 +1407,6 @@ set_region_province_canada_rnaturalearth()
 #>  [9] "Nunavut"                   "Newfoundland and Labrador"
 #> [11] "Nova Scotia"               "Northwest Territories"    
 #> [13] "Prince Edward Island"
-```
-
-``` r
 
 library(ggplot2)
 
@@ -1274,7 +1426,7 @@ nhl_player_births |>
 #> Joining with `by = join_by(prov_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-28-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-30-1.png)<!-- -->
 
 ## Netherlands province
 
@@ -1282,9 +1434,6 @@ nhl_player_births |>
 library(tmap)
 #> Breaking News: tmap 3.x is retiring. Please test v4, e.g. with
 #> remotes::install_github('r-tmap/tmap')
-```
-
-``` r
 
 data("NLD_prov")
 data("NLD_muni")
@@ -1319,16 +1468,10 @@ set_region_province_netherlands_tmap()
 #> Region has been set to netherland provinces
 #> 
 #>           required aes 'prov_code|prov_name
-```
-
-``` r
 set_subregion_municipality_netherlands_tmap()
 #> Subregion has been set to netherland municipality
 #> 
 #>           required aes 'muni_code|muni_name
-```
-
-``` r
 
 NLD_prov %>% 
   sf::st_drop_geometry() %>% 
@@ -1362,7 +1505,7 @@ NLD_prov %>%
 #> old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-29-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-31-1.png)<!-- -->
 
 ``` r
 
@@ -1378,7 +1521,7 @@ last_plot() +
 #> Joining with `by = join_by(prov_code)`old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-29-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-31-2.png)<!-- -->
 
 ``` r
 
@@ -1407,7 +1550,7 @@ NLD_muni %>%
 #> Joining with `by = join_by(muni_code)`old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-29-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-31-3.png)<!-- -->
 
 ``` r
 
@@ -1426,9 +1569,10 @@ last_plot() +
 #> old-style crs object detected; please recreate object with a recent sf::st_crs()
 #> old-style crs object detected; please recreate object with a recent sf::st_crs()
 #> old-style crs object detected; please recreate object with a recent sf::st_crs()
+#> old-style crs object detected; please recreate object with a recent sf::st_crs()
 ```
 
-![](man/figures/README-unnamed-chunk-29-4.png)<!-- -->
+![](man/figures/README-unnamed-chunk-31-4.png)<!-- -->
 
 ## US states
 
@@ -1450,9 +1594,6 @@ usmapdata::us_map() |>
 
 set_region_state_usmapdata()
 #> required aes are 'state_name|state_abb|fips'
-```
-
-``` r
 
 USArrests  %>% 
   rownames_to_column("state") |>
@@ -1464,15 +1605,12 @@ USArrests  %>%
 #> Joining with `by = join_by(state_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-30-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-32-1.png)<!-- -->
 
 ``` r
 
 set_region_state_usmapdata()
 #> required aes are 'state_name|state_abb|fips'
-```
-
-``` r
 
 
 nhl_player_births <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-01-09/nhl_player_births.csv')
@@ -1485,9 +1623,6 @@ nhl_player_births <- readr::read_csv('https://raw.githubusercontent.com/rfordata
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 nhl_player_births |>
   filter(birth_country == "USA") |>
@@ -1508,7 +1643,7 @@ nhl_player_births |>
 #> Joining with `by = join_by(state_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-30-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-32-2.png)<!-- -->
 
 ``` r
 
@@ -1517,9 +1652,6 @@ nhl_player_births |>
 
 set_region_state_usmapdata()
 #> required aes are 'state_name|state_abb|fips'
-```
-
-``` r
 
 
 pride_index <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-06-11/pride_index.csv')
@@ -1531,9 +1663,6 @@ pride_index <- readr::read_csv('https://raw.githubusercontent.com/rfordatascienc
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 
 pride_index %>% 
@@ -1552,16 +1681,13 @@ pride_index %>%
 #> Joining with `by = join_by(state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-30-3.png)<!-- -->
+![](man/figures/README-unnamed-chunk-32-3.png)<!-- -->
 
 ``` r
   
 
 set_region_state_usmapdata()
 #> required aes are 'state_name|state_abb|fips'
-```
-
-``` r
 
 
 eclipse_total_2024 <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-04-09/eclipse_total_2024.csv')
@@ -1574,9 +1700,6 @@ eclipse_total_2024 <- readr::read_csv('https://raw.githubusercontent.com/rfordat
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 
 eclipse_total_2024 %>% 
@@ -1592,7 +1715,7 @@ eclipse_total_2024 %>%
 #> Joining with `by = join_by(state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-30-4.png)<!-- -->
+![](man/figures/README-unnamed-chunk-32-4.png)<!-- -->
 
 ## US counties
 
@@ -1617,23 +1740,17 @@ usmapdata::us_map("county" ) |>
 
 set_region_county_usmapdata()
 #> required aes are 'state_name|state_abb|fips|county_name'
-```
-
-``` r
 
 ggplot() + 
   aes(fips = 1) + 
   stamp_region()
 ```
 
-![](man/figures/README-unnamed-chunk-31-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-33-1.png)<!-- -->
 
 ``` r
 set_region_county_usmapdata()
 #> required aes are 'state_name|state_abb|fips|county_name'
-```
-
-``` r
 
 polling_places <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-01-16/polling_places.csv')
 #> Rows: 461445 Columns: 15
@@ -1644,9 +1761,6 @@ polling_places <- readr::read_csv('https://raw.githubusercontent.com/rfordatasci
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 polling_places |>
   filter(year(election_date) == 2020) %>% 
@@ -1668,15 +1782,12 @@ polling_places |>
 #> Joining with `by = join_by(county_name, state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-32-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-34-1.png)<!-- -->
 
 ``` r
 
 set_region_state_usmapdata()
 #> required aes are 'state_name|state_abb|fips'
-```
-
-``` r
 
 
 polling_places <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-01-16/polling_places.csv')
@@ -1688,9 +1799,6 @@ polling_places <- readr::read_csv('https://raw.githubusercontent.com/rfordatasci
 #> 
 #> ℹ Use `spec()` to retrieve the full column specification for this data.
 #> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-```
-
-``` r
 
 polling_places |>
   filter(year(election_date) == 2020) %>% 
@@ -1705,7 +1813,7 @@ polling_places |>
 #> Joining with `by = join_by(state_abb)`
 ```
 
-![](man/figures/README-unnamed-chunk-32-2.png)<!-- -->
+![](man/figures/README-unnamed-chunk-34-2.png)<!-- -->
 
 ## aseg brain segments
 
@@ -1717,8 +1825,6 @@ set_region_aseg_ggseg <- function(){
   select(region) %>% 
   options(sf2stat.ref_data = ., 
           sf2stat.required_aes = "region")
-  
-  
   
 }
 
@@ -1735,11 +1841,7 @@ ggplot() +
 #> replace the existing one.
 #> Coordinate system already present. Adding new coordinate system, which will
 #> replace the existing one.
-```
-
-![](man/figures/README-unnamed-chunk-33-1.png)<!-- -->
-
-``` r
+#> Error in st_transform.sfc(bbox, 4326): cannot transform sfc object with missing crs
 
 set_region_aseg_ggseg()
 
@@ -1753,9 +1855,8 @@ ggplot() +
   labs(fill = NULL)
 #> Coordinate system already present. Adding new coordinate system, which will
 #> replace the existing one.
+#> Error in st_transform.sfc(bbox, 4326): cannot transform sfc object with missing crs
 ```
-
-![](man/figures/README-unnamed-chunk-33-2.png)<!-- -->
 
 ## German voting districts
 
@@ -1802,9 +1903,6 @@ read.csv("nc-midterms.csv") |> head()
 #> 4       ANSON  9028 0.5674062 0.4267833
 #> 5     HALIFAX 21875 0.5865712 0.4337829
 #> 6       ROWAN 23667 0.2424922 0.4338108
-```
-
-``` r
 
 
 # and being aware of geographic data with geometry shape column
@@ -1817,9 +1915,6 @@ nc <- sf::st_read(system.file("shape/nc.shp", package="sf"))
 #> Dimension:     XY
 #> Bounding box:  xmin: -84.32385 ymin: 33.88199 xmax: -75.45698 ymax: 36.58965
 #> Geodetic CRS:  NAD27
-```
-
-``` r
 
 # select relevant id columns (this will keep geometry column)
 nc_ref <- nc |>
@@ -1858,7 +1953,7 @@ read.csv("nc-midterms.csv") |>
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-37-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-39-1.png)<!-- -->
 
 We see that there are actually undiscovered counties, as exact name
 matching can be a little dicy. Using fips which would probably perform
@@ -1876,7 +1971,7 @@ read.csv("nc-midterms.csv") |>
   stamp_county(fill = 'darkgrey')
 ```
 
-![](man/figures/README-unnamed-chunk-38-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-40-1.png)<!-- -->
 
 Then we use geom_county(), which reflects your data and the success of
 the underlying join process.
@@ -1889,7 +1984,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-39-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-41-1.png)<!-- -->
 
 Then look at population choropleth (fill = n) and highlight Mecklenburg
 with convenience annotation layer ‘stamp_county’
@@ -1901,7 +1996,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-40-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-42-1.png)<!-- -->
 
 highlight at county of interest…
 
@@ -1915,7 +2010,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-41-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-43-1.png)<!-- -->
 
 We can add a text layer defaults to ref_data column 1 (id_index
 setting)…
@@ -1931,7 +2026,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-42-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-44-1.png)<!-- -->
 
 We can look at another variable…
 
@@ -1942,7 +2037,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-43-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-45-1.png)<!-- -->
 
 And another…
 
@@ -1953,7 +2048,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-44-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-46-1.png)<!-- -->
 
 And look at some values for that variable
 
@@ -1964,7 +2059,7 @@ last_plot() +
 #> Joining with `by = join_by(county_name)`
 ```
 
-![](man/figures/README-unnamed-chunk-45-1.png)<!-- -->
+![](man/figures/README-unnamed-chunk-47-1.png)<!-- -->
 
 ``` r
 knitr::knit_exit()
